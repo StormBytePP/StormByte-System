@@ -84,8 +84,8 @@ jobs:
 
       - name: Copy DLLs
         run: |
-          copy ${{ github.workspace }}\build\thirdparty\StormByte\lib\StormByte.dll ${{ github.workspace }}\build\test
-          copy ${{ github.workspace }}\build\lib/StormByteSystem.dll ${{ github.workspace }}\build\test
+          copy ${{ github.workspace }}\build\thirdparty\StormByte\base\lib\StormByte.dll ${{ github.workspace }}\build\test
+          copy ${{ github.workspace }}\build\lib\StormByteSystem.dll ${{ github.workspace }}\build\test
 
       - name: Run unit tests
         run: ctest --output-on-failure --test-dir ${{ github.workspace }}\build\test
