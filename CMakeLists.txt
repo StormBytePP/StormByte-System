@@ -4,10 +4,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-project("StormByte System"
+project("StormByte C++ Library: System module"
 	VERSION 1.0.0
-	DESCRIPTION "StormByte System... is a StormByte library for parsing configuration files"
-	HOMEPAGE_URL "https://github.com/StormBytePP/StormByteSystem"
+	DESCRIPTION "StormByte-System is a StormByte library module for encapsulating different process handling over different operating system's complexities"
+	HOMEPAGE_URL "https://dev.stormbyte.org/StormByte-System"
 )
 
 enable_testing()
