@@ -3,7 +3,7 @@
 #include <definitions.h>
 
 #ifdef WINDOWS
-	#ifdef StormByteSystem_EXPORTS
+	#ifdef StormByte_System_EXPORTS
 		#define STORMBYTE_SYSTEM_PUBLIC	__declspec(dllexport)
   	#else
       	#define STORMBYTE_SYSTEM_PUBLIC	__declspec(dllimport)
@@ -11,5 +11,5 @@
   	#define STORMBYTE_SYSTEM_PRIVATE
 #else
     #define STORMBYTE_SYSTEM_PUBLIC		__attribute__ ((visibility ("default")))
-    #define STORMBYTE_SYSTEM_PRIVATE		__attribute__ ((visibility ("hidden")))
+    #define STORMBYTE_SYSTEM_PRIVATE	__attribute__ ((visibility ("hidden")))
 #endif
