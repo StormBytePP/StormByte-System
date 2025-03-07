@@ -129,33 +129,63 @@ void Process::send(const std::string& str) {
 
 #ifdef LINUX
 int Process::wait() noexcept {
-	int status;
+	int status = 0;
+
+	// Join the forwarder thread, if any
 	if (m_forwarder) {
 		m_forwarder->join();
 		m_forwarder.reset();
 	}
-	waitpid(m_pid, &status, 0);
+
+	// Wait for the process and handle errors
+	if (waitpid(m_pid, &status, 0) == -1) {
+		m_status = Status::TERMINATED;
+		return -1; // Indicate failure
+	}
+
+	// Check if the process exited normally
+	if (WIFEXITED(status)) {
+		m_status = Status::TERMINATED;
+		return WEXITSTATUS(status); // Return the exit code
+	}
+
+	// Handle abnormal termination
 	m_status = Status::TERMINATED;
-	return WEXITSTATUS(status);
+	return -1;
 }
+
 
 pid_t Process::get_pid() noexcept {
 	return m_pid;
 }
 #else
 DWORD Process::wait() noexcept {
-	DWORD status;
+	DWORD exitCode = 0;
+
+	// Join the forwarder thread, if any
 	if (m_forwarder) {
 		m_forwarder->join();
 		m_forwarder.reset();
 	}
-	WaitForSingleObject(m_piProcInfo.hProcess, INFINITE);
-	GetExitCodeThread(m_piProcInfo.hThread, &status);
 
+	// Wait for the process to finish
+	if (WaitForSingleObject(m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
+		m_status = Status::TERMINATED;
+		return static_cast<DWORD>(-1); // Indicate failure
+	}
+
+	// Retrieve the process exit code
+	if (!GetExitCodeProcess(m_piProcInfo.hProcess, &exitCode)) {
+		m_status = Status::TERMINATED;
+		return static_cast<DWORD>(-1); // Indicate failure
+	}
+
+	// Clean up process handles
 	CloseHandle(m_piProcInfo.hProcess);
 	CloseHandle(m_piProcInfo.hThread);
+
 	m_status = Status::TERMINATED;
-	return status;
+	return exitCode;
 }
 
 PROCESS_INFORMATION Process::get_pid() {
