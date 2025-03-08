@@ -15,8 +15,8 @@ set_target_properties(StormByte-System PROPERTIES
 
 # Compile options
 if(MSVC)
-	add_compile_options(/wd4251 /EHsc)
-	add_compile_definitions(UNICODE) # Create problems if disabled
+	target_compile_options(StormByte-System PRIVATE /wd4251 /EHsc /O2 /Gs)
+	target_link_options(StormByte-System PRIVATE /LTCG /GL)
 else()
 	set(CMAKE_CXX_FLAGS_DEBUG "-pipe -g -ggdb -Wall -Wextra -Wnon-virtual-dtor -pedantic -pedantic-errors -O0")
 	target_compile_options(StormByte-System PRIVATE -fvisibility=hidden $<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
