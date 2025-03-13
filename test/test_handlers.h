@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 #define RETURN_TEST(fn_name, fn_result) if (fn_result != 0) { \
 	std::cerr << "Test " << fn_name << " FAILED!" << std::endl; \
 } \

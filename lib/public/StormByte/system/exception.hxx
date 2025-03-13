@@ -1,7 +1,7 @@
 #pragma once
 
-#include <exception.hxx>
-#include <system/visibility.h>
+#include <StormByte/exception.hxx>
+#include <StormByte/system/visibility.h>
 
 #include <filesystem>
 
