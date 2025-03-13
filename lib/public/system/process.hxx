@@ -178,9 +178,9 @@ namespace StormByte::System {
 			/**
 			 * Process pipes
 			 */
-			System::Pipe m_pstdout;	///< Standard output pipe
-			System::Pipe m_pstdin;	///< Standard input pipe
-			System::Pipe m_pstderr;	///< Standard error pipe
+			Pipe m_pstdout;									///< Standard output pipe
+			Pipe m_pstdin;									///< Standard input pipe
+			Pipe m_pstderr;									///< Standard error pipe
 			
 		private:
 			/**
