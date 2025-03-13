@@ -9,13 +9,15 @@
 
 using namespace StormByte::System;
 
-Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
-m_status(Status::RUNNING), m_program(prog), m_arguments(args) {
+Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):m_status(Status::RUNNING),
+m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
+m_program(prog), m_arguments(args) {
 	Run();
 }
 
-Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
-m_status(Status::RUNNING), m_program(std::move(prog)), m_arguments(std::move(args)) {
+Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):m_status(Status::RUNNING),
+m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
+m_program(std::move(prog)), m_arguments(std::move(args)) {
 	Run();
 }
 
