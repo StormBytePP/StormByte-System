@@ -1,3 +1,4 @@
+#include <system/pipe.hxx>
 #include <system/process.hxx>
 
 #ifdef LINUX
@@ -8,59 +9,113 @@
 
 using namespace StormByte::System;
 
-Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):m_status(Status::RUNNING), m_program(prog), m_arguments(args) {
-	run();
+Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
+m_status(Status::RUNNING), m_program(prog), m_arguments(args) {
+	Run();
 }
 
-Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):m_status(Status::RUNNING), m_program(std::move(prog)), m_arguments(std::move(args)) {
-	run();
+Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):m_pstdout(new Pipe()), m_pstdin(new Pipe()), m_pstderr(new Pipe()),
+m_status(Status::RUNNING), m_program(std::move(prog)), m_arguments(std::move(args)) {
+	Run();
+}
+
+Process::Process(Process&& proc) noexcept {
+	#ifdef LINUX
+		m_pid = proc.m_pid;
+	#else
+		m_piProcInfo = proc.m_piProcInfo;
+		ZeroMemory(&proc.m_piProcInfo, sizeof(PROCESS_INFORMATION));
+		m_siStartInfo = proc.m_siStartInfo;
+		ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFO));
+	#endif
+	m_pstdout = proc.m_pstdout;
+	m_pstdout = nullptr;
+	m_pstdin = proc.m_pstdin;
+	m_pstdin = proc.m_pstderr;
+	m_pstderr = proc.m_pstderr;
+	m_pstderr = nullptr;
+	m_status = proc.m_status;
+	proc.m_status = Status::TERMINATED;
+	m_program = std::move(proc.m_program);
+	m_arguments = std::move(proc.m_arguments);
+}
+
+Process& Process::operator=(Process&& proc) noexcept {
+	if (this == &proc) {
+		#ifdef LINUX
+			m_pid = proc.m_pid;
+		#else
+			m_piProcInfo = proc.m_piProcInfo;
+			ZeroMemory(&proc.m_piProcInfo, sizeof(PROCESS_INFORMATION));
+			m_siStartInfo = proc.m_siStartInfo;
+			ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFO));
+		#endif
+		m_pstdout = proc.m_pstdout;
+		m_pstdout = nullptr;
+		m_pstdin = proc.m_pstdin;
+		m_pstdin = proc.m_pstderr;
+		m_pstderr = proc.m_pstderr;
+		m_pstderr = nullptr;
+		m_status = proc.m_status;
+		proc.m_status = Status::TERMINATED;
+		m_program = std::move(proc.m_program);
+		m_arguments = std::move(proc.m_arguments);
+	}
+	return *this;
 }
 
 Process::~Process() noexcept {
-	wait();
+	Wait();
+	delete m_pstdout;
+	delete m_pstdin;
+	delete m_pstderr;
+	#ifdef WINDOWS
+		ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFO));
+		ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	#endif
 }
 
 Process& Process::operator>>(Process& exe) {
-	consume_and_forward(exe);
+	ConsumeAndForward(exe);
 	return exe;
 }
 
 std::string& Process::operator>>(std::string& data) const {
-	m_pstdout >> data;
+	*m_pstdout >> data;
 	return data;
 }
 
 std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe) {
 	std::string data;
-	exe.m_pstdout >> data;
+	*exe.m_pstdout >> data;
 	return os << data;
 }
 
 Process& Process::operator<<(const std::string& data) {
-	m_pstdin << data;
+	*m_pstdin << data;
 	return *this;
 }
 
 void Process::operator<<(const System::_EoF&) {
-	m_pstdin.close_write();
+	m_pstdin->CloseWrite();
 }
 
-void Process::run() {
+void Process::Run() {
 	#ifdef LINUX
 	m_pid = fork();
 
 	if (m_pid == 0) {
 		/* STDIN: Child reads from STDIN but does not write to */
-		m_pstdin.close_write();
-		m_pstdin.bind_read(STDIN_FILENO);
+		m_pstdin->CloseWrite();
+		m_pstdin->BindRead(STDIN_FILENO);
 
 		/* STDOUT: Child writes to STDOUT but does not read from */
-		m_pstdout.close_read();
-		m_pstdout.bind_write(STDOUT_FILENO);
+		m_pstdout->CloseRead();
+		m_pstdout->BindWrite(STDOUT_FILENO);
 
 		/* STDERR: Child writes to STDERR but does not read from */
-		m_pstderr.close_read();
-		m_pstderr.bind_write(STDERR_FILENO);
+		m_pstderr->CloseRead();
+		m_pstderr->BindWrite(STDERR_FILENO);
 
 		std::vector<char*> argv;
 		argv.reserve(m_arguments.size() + 2);
@@ -75,28 +130,28 @@ void Process::run() {
 	}
 	else {
 		/* STDIN: Parent writes to STDIN but does not read from */
-		m_pstdin.close_read();
+		m_pstdin->CloseRead();
 
 		/* STDOUT: Parent reads from to STDOUT but does not write to */
-		m_pstdout.close_write();
+		m_pstdout->CloseWrite();
 
 		/* STDERR: Parent reads from to STDERR but does not write to */
-		m_pstderr.close_write();
+		m_pstderr->CloseWrite();
 	}
 	#else
 	ZeroMemory(&m_piProcInfo,	sizeof(PROCESS_INFORMATION));
 	ZeroMemory(&m_siStartInfo,	sizeof(STARTUPINFO));
 	m_siStartInfo.cb = sizeof(STARTUPINFO);
-	m_siStartInfo.hStdError = m_pstderr.get_write_handle();
-	m_siStartInfo.hStdOutput = m_pstdout.get_write_handle();
-	m_siStartInfo.hStdInput = m_pstdin.get_read_handle();
+	m_siStartInfo.hStdError = m_pstderr->WriteHandle();
+	m_siStartInfo.hStdOutput = m_pstdout->WriteHandle();
+	m_siStartInfo.hStdInput = m_pstdin->ReadHandle();
 	m_siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-	m_pstdout.set_read_handle_information(HANDLE_FLAG_INHERIT, FALSE);
-	m_pstderr.set_read_handle_information(HANDLE_FLAG_INHERIT, FALSE);
-	m_pstdin.set_write_handle_information(HANDLE_FLAG_INHERIT, FALSE);
+	m_pstdout->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
+	m_pstderr->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
+	m_pstdin->WriteHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
 
-	std::wstring command = full_command();
+	std::wstring command = FullCommand();
 	TCHAR* szCmdline = const_cast<TCHAR*>(command.c_str());
 
 	if (CreateProcess(	NULL,
@@ -110,25 +165,25 @@ void Process::run() {
 						&m_siStartInfo,		// STARTUPINFO pointer 
 						&m_piProcInfo)) {
 		// Set the rest of handles not inheritable by other execs
-		m_pstdout.set_write_handle_information(HANDLE_FLAG_INHERIT, 0);
-		m_pstderr.set_write_handle_information(HANDLE_FLAG_INHERIT, 0);
-		m_pstdin.set_read_handle_information(HANDLE_FLAG_INHERIT, 0);
+		m_pstdout->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
+		m_pstderr->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
+		m_pstdin->ReadHandleInformation(HANDLE_FLAG_INHERIT, 0);
 	
 		// Close handles to the stdin and stdout pipes no longer needed by the child process.
 		// If they are not explicitly closed, there is no way to recognize that the child process has ended.
-		m_pstdout.close_write();
-		m_pstderr.close_write();
-		m_pstdin.close_read();
+		m_pstdout->CloseWrite();
+		m_pstderr->CloseWrite();
+		m_pstdin->CloseRead();
 	}
 	#endif
 }
 
-void Process::send(const std::string& str) {
-	m_pstdin << str;
+void Process::Send(const std::string& str) {
+	*m_pstdin << str;
 }
 
 #ifdef LINUX
-int Process::wait() noexcept {
+int Process::Wait() noexcept {
 	int status = 0;
 
 	// Join the forwarder thread, if any
@@ -155,11 +210,11 @@ int Process::wait() noexcept {
 }
 
 
-pid_t Process::get_pid() noexcept {
+pid_t Process::Pid() noexcept {
 	return m_pid;
 }
 #else
-DWORD Process::wait() noexcept {
+DWORD Process::Wait() noexcept {
 	DWORD exitCode = 0;
 
 	// Join the forwarder thread, if any
@@ -188,12 +243,12 @@ DWORD Process::wait() noexcept {
 	return exitCode;
 }
 
-PROCESS_INFORMATION Process::get_pid() {
+PROCESS_INFORMATION Process::Pid() {
 	return m_piProcInfo;
 }
 #endif
 
-void Process::suspend() {
+void Process::Suspend() {
 	#ifdef LINUX
 	::kill(m_pid, SIGSTOP);
 	#else
@@ -221,7 +276,7 @@ void Process::suspend() {
 	m_status = Status::SUSPENDED;
 }
 
-void Process::resume() {
+void Process::Resume() {
 	#ifdef LINUX
 	::kill(m_pid, SIGCONT);
 	#else
@@ -249,7 +304,7 @@ void Process::resume() {
 	m_status = Status::RUNNING;
 }
 
-void Process::consume_and_forward(Process& exec) {
+void Process::ConsumeAndForward(Process& exec) {
 	m_forwarder = std::make_unique<std::thread>(
 		[&]{
 			#ifdef LINUX
@@ -257,12 +312,12 @@ void Process::consume_and_forward(Process& exec) {
 			ssize_t bytes_read;
 			bool chunks_written = true;
 			do {
-				bytes_read = m_pstdout.read(buffer, Pipe::MAX_READ_BYTES);
+				bytes_read = m_pstdout->Read(buffer, Pipe::MAX_READ_BYTES);
 				if (bytes_read > 0) {
-					chunks_written = exec.m_pstdin.write_atomic(std::string(buffer.data(), bytes_read));
+					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), bytes_read));
 				}
-			} while (!m_pstdout.read_eof() && chunks_written);
-			exec.m_pstdin.close_write();
+			} while (!m_pstdout->ReadEOF() && chunks_written);
+			exec.m_pstdin->CloseWrite();
 
 			/* If chunks_written is false then it means that target executable */
 			/* already processed our input and closed connection, so we assume */
@@ -273,10 +328,10 @@ void Process::consume_and_forward(Process& exec) {
 			/* process in case it is locked in a pipe write operation          */
 			if (!chunks_written) {
 				kill(m_pid, SIGTERM);
-				while(!m_pstdout.read_eof()) {
+				while(!m_pstdout->ReadEOF()) {
 					std::vector<char> buffer;
 					buffer.reserve(Pipe::MAX_READ_BYTES);
-					m_pstdout.read(buffer, Pipe::MAX_READ_BYTES);
+					m_pstdout->Read(buffer, Pipe::MAX_READ_BYTES);
 				}
 			}
 			#else
@@ -285,9 +340,9 @@ void Process::consume_and_forward(Process& exec) {
 			SSIZE_T bytes_read;
 			bool chunks_written = true;
 			do {
-				bytes_read = m_pstdout.read(buffer, Pipe::MAX_READ_BYTES);
+				bytes_read = m_pstdout->Read(buffer, Pipe::MAX_READ_BYTES);
 				if (bytes_read > 0) {
-					chunks_written = exec.m_pstdin.write_atomic(std::string(buffer.data(), bytes_read));
+					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), bytes_read));
 				}
 				status = WaitForSingleObject(m_piProcInfo.hProcess, 0);
 			} while (chunks_written && status == WAIT_TIMEOUT);
@@ -296,14 +351,14 @@ void Process::consume_and_forward(Process& exec) {
 			if (!chunks_written) {
 				TerminateProcess(m_piProcInfo.hProcess, 0);
 			}
-			exec.m_pstdin.close_write();
+			exec.m_pstdin->CloseWrite();
 			#endif
 		}
 	);
 }
 
 #ifdef WINDOWS
-std::wstring Process::full_command() const {
+std::wstring Process::FullCommand() const {
 	std::stringstream ss;
 
 	std::vector<std::string> full = { m_program.string() };

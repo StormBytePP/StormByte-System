@@ -14,7 +14,7 @@ int test_basic_execution() {
 
     ASSERT_EQUAL("test_basic_execution", "Hello, World!\n", output);
 
-    int exit_code = proc.wait();
+    int exit_code = proc.Wait();
     ASSERT_EQUAL("test_basic_execution", 0, exit_code);
 
     return 0;
@@ -35,8 +35,8 @@ int test_pipeline_execution() {
 
     ASSERT_EQUAL("test_pipeline_execution", "6\n", output);  // "Hello\n" has 6 characters including the newline.
 
-    proc1.wait();
-    proc2.wait();
+    proc1.Wait();
+    proc2.Wait();
 
     return 0;
 }
@@ -55,8 +55,8 @@ int test_pipeline_sort() {
 
     ASSERT_EQUAL("test_pipeline_sort", "apple\nbanana\ncherry\n", output);  // Sorted output.
 
-    proc1.wait();
-    proc2.wait();
+    proc1.Wait();
+    proc2.Wait();
 
     return 0;
 }
@@ -79,10 +79,10 @@ int test_pipeline_find_sort_wc() {
 
     ASSERT_EQUAL("test_pipeline_find_sort_wc", "2\n", output);  // There are 2 lines containing "apple".
 
-    proc1.wait();
-    proc2.wait();
-    proc3.wait();
-    proc4.wait();
+    proc1.Wait();
+    proc2.Wait();
+    proc3.Wait();
+    proc4.Wait();
 
     return 0;
 }
@@ -104,10 +104,10 @@ int test_pipeline_echo_sort_wc() {
 
     ASSERT_EQUAL("test_pipeline_echo_sort_wc", "4\n", output);  // There are 4 unique sorted lines.
 
-    proc1.wait();
-    proc2.wait();
-    proc3.wait();
-    proc4.wait();
+    proc1.Wait();
+    proc2.Wait();
+    proc3.Wait();
+    proc4.Wait();
 
     return 0;
 }
@@ -137,7 +137,7 @@ int test_basic_execution_windows() {
 
     ASSERT_EQUAL("test_basic_execution_windows", "Hello, World! \r\n", output);
 
-    DWORD exit_code = proc.wait();
+    DWORD exit_code = proc.Wait();
     ASSERT_EQUAL("test_basic_execution_windows", 0, exit_code);
 
     return 0;
@@ -153,7 +153,7 @@ int test_complex_command_windows() {
 
     ASSERT_FALSE("test_complex_command_windows", output.empty());  // Check that output is not empty.
 
-    DWORD exit_code = proc.wait();
+    DWORD exit_code = proc.Wait();
     ASSERT_EQUAL("test_complex_command_windows", 0, exit_code);
 
     return 0;

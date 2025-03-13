@@ -38,22 +38,22 @@ namespace StormByte::System {
 			/**
 			 * Copy constructor
 			 */
-			Pipe(const Pipe&)				= delete;
+			Pipe(const Pipe&)									= delete;
 
 			/**
 			 * Move constructor
 			 */
-			Pipe(Pipe&&)					= default;
+			Pipe(Pipe&&)										= default;
 
 			/**
 			 * Assignment operator
 			 */
-			Pipe& operator=(const Pipe&)	= delete;
+			Pipe& operator=(const Pipe&)						= delete;
 
 			/**
 			 * Move operator
 			 */
-			Pipe& operator=(Pipe&&)			= default;
+			Pipe& operator=(Pipe&&)								= default;
 
 			/**
 			 * Destructor
@@ -65,37 +65,37 @@ namespace StormByte::System {
 			 * Binds a file descriptor to the pipe
 			 * @param fd file descriptor
 			 */
-			void bind_read(int fd) noexcept;
+			void 												BindRead(int fd) noexcept;
+
+			/**
+			 * Binds a file descriptor to the pipe
+			 * @param fd pipe descriptor
+			 */
+			void 												BindRead(Pipe& fd) noexcept;
 
 			/**
 			 * Binds a file descriptor to the pipe
 			 * @param fd file descriptor
 			 */
-			void bind_read(Pipe&) noexcept;
+			void 												BindWrite(int fd) noexcept;
 
 			/**
 			 * Binds a file descriptor to the pipe
-			 * @param fd file descriptor
+			 * @param fd pipe descriptor
 			 */
-			void bind_write(int fd) noexcept;
-
-			/**
-			 * Binds a file descriptor to the pipe
-			 * @param fd file descriptor
-			 */
-			void bind_write(Pipe&) noexcept;
+			void 												BindWrite(Pipe& fd) noexcept;
 
 			/**
 			 * Writes to the pipe
 			 * @param str string
 			 * @return bytes written
 			 */
-			ssize_t write(const std::string& str);
+			ssize_t 											Write(const std::string& str);
 
 			/**
 			 * Writes EOF to the pipe
 			 */
-			bool write_eof() const;
+			bool 												WriteEOF() const;
 
 			/**
 			 * Reads from the pipe
@@ -103,45 +103,45 @@ namespace StormByte::System {
 			 * @param size size
 			 * @return bytes read
 			 */
-			ssize_t read(std::vector<char>&, ssize_t) const;
+			ssize_t 											Read(std::vector<char>& buffer, ssize_t size) const;
 
 			/**
 			 * Reads EOF from the pipe
 			 */
-			bool read_eof() const;
+			bool 												ReadEOF() const;
 			#else
 			/**
 			 * Sets the read handle information
 			 * @param mask mask
 			 * @param flags flags
 			 */
-			void set_read_handle_information(DWORD mask, DWORD flags);
+			void 												ReadHandleInformation(DWORD mask, DWORD flags);
 
 			/**
 			 * Sets the write handle information
 			 * @param mask mask
 			 * @param flags flags
 			 */
-			void set_write_handle_information(DWORD mask, DWORD flags);
+			void 												WriteHandleInformation(DWORD mask, DWORD flags);
 
 			/**
 			 * Gets the read handle
 			 * @return handle
 			 */
-			HANDLE get_read_handle() const;
+			HANDLE 												ReadHandle() const;
 
 			/**
 			 * Gets the write handle
 			 * @return handle
 			 */
-			HANDLE get_write_handle() const;
+			HANDLE 												WriteHandle() const;
 
 			/**
 			 * Writes to the pipe
 			 * @param str string
 			 * @return bytes written
 			 */
-			DWORD write(const std::string& str);
+			DWORD 												Write(const std::string& str);
 
 			/**
 			 * Reads from the pipe
@@ -149,7 +149,7 @@ namespace StormByte::System {
 			 * @param size size
 			 * @return bytes read
 			 */
-			DWORD read(std::vector<CHAR>& buffer, DWORD size) const;
+			DWORD 												Read(std::vector<CHAR>& buffer, DWORD size) const;
 			#endif
 
 			/**
@@ -157,51 +157,58 @@ namespace StormByte::System {
 			 * @param str string
 			 * @return boolean indicating if it was written
 			 */
-			bool write_atomic(std::string&& str);
+			bool 												WriteAtomic(std::string&& str);
 
 			/**
 			 * Close read end
 			 */
-			void close_read() noexcept;
+			void 												CloseRead() noexcept;
 
 			/**
 			 * Close write end
 			 */
-			void close_write() noexcept;
+			void 												CloseWrite() noexcept;
 
 			/**
 			 * Writes to the pipe
 			 * @param str string
 			 * @return Pipe reference
 			 */
-			Pipe& operator<<(const std::string& str);
+			Pipe& 												operator<<(const std::string& str);
 
 			/**
 			 * Reads from the pipe
 			 * @param str string
 			 * @return Pipe reference
 			 */
-			std::string& operator>>(std::string& str) const;
+			std::string& 										operator>>(std::string& str) const;
 
 		private:
+			#ifdef WINDOWS
+			HANDLE m_fd[2];										///< File descriptors
+			static SECURITY_ATTRIBUTES m_sAttr;					///< Security attributes
+			#else
+			int m_fd[2];										///< File descriptors
+			#endif
 			#ifdef LINUX
 			/**
 			 * Binds a file descriptor to the pipe
-			 * @param fd file descriptor
+			 * @param src file descriptor
+			 * @param dst destination
 			 */
-			void bind(int&, int) noexcept;
+			void 												Bind(int& src, int dst) noexcept;
 
 			/**
 			 * Closes a file descriptor
 			 * @param fd file descriptor
 			 */
-			void close(int& fd) noexcept;
+			void 												Close(int& fd) noexcept;
 			#else
 			/**
 			 * Closes a handle
 			 * @param handle handle
 			 */
-			void close(HANDLE&) noexcept;
+			void 												Close(HANDLE& handle) noexcept;
 
 			/**
 			 * Sets the handle information
@@ -209,25 +216,7 @@ namespace StormByte::System {
 			 * @param str string
 			 * @return bytes written
 			 */
-			void set_handle_information(HANDLE, DWORD, DWORD);
+			void 												HandleInformation(HANDLE handle, DWORD, DWORD);
 			#endif
-
-			#ifdef WINDOWS
-			/**
-			 * Handles
-			 */
-			HANDLE m_fd[2];
-
-			/**
-			 * Security attributes
-			 */
-			static SECURITY_ATTRIBUTES m_sAttr;
-			#else
-			/**
-			 * File descriptors
-			 */
-			int m_fd[2];
-			#endif
-			
 	};
 }
