@@ -109,4 +109,42 @@ namespace StormByte::System {
 			 */
 			~FileIOError() noexcept override			= default;
 	};
+
+	/**
+	 * @class ExecutableNotFound
+	 * @brief Exception thrown when an executable is not found
+	 */
+	class STORMBYTE_SYSTEM_PUBLIC ExecutableNotFound: public Exception {
+		public:
+			/**
+			 * Constructor
+			 * @param exec Executable which was not found
+			 */
+			ExecutableNotFound(const std::filesystem::path& exec);
+
+			/**
+			 * Copy constructor
+			 */
+			ExecutableNotFound(const ExecutableNotFound&)					= default;
+
+			/**
+			 * Move constructor
+			 */
+			ExecutableNotFound(ExecutableNotFound&&) noexcept				= default;
+
+			/**
+			 * Assignment operator
+			 */
+			ExecutableNotFound& operator=(const ExecutableNotFound&)		= default;
+
+			/**
+			 * Move operator
+			 */
+			ExecutableNotFound& operator=(ExecutableNotFound&&) noexcept	= default;
+
+			/**
+			 * Destructor
+			 */
+			~ExecutableNotFound() noexcept override							= default;
+	};
 }

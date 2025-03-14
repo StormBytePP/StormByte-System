@@ -8,3 +8,6 @@ Exception::Exception(const std::string& message):StormByte::Exception(message) {
 
 FileIOError::FileIOError(const std::filesystem::path& file, const Operation& operation):
 Exception("File " + file.string() + " can not be opened for " + operation_to_string(operation)) {}
+
+ExecutableNotFound::ExecutableNotFound(const std::filesystem::path& exec):
+Exception("Executable " + exec.string() + " not found") {}

@@ -1,3 +1,4 @@
+#include <StormByte/system/exception.hxx>
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
 
@@ -128,7 +129,7 @@ void Process::Run() {
 		
 		execvp(m_program.c_str(), argv.data());
 		// If we reach here then we failed to execute the program
-		exit(0);
+		throw ExecutableNotFound(m_program);
 	}
 	else {
 		/* STDIN: Parent writes to STDIN but does not read from */
@@ -176,6 +177,9 @@ void Process::Run() {
 		m_pstdout->CloseWrite();
 		m_pstderr->CloseWrite();
 		m_pstdin->CloseRead();
+	}
+	else {
+		throw ExecutableNotFound(m_program);
 	}
 	#endif
 }
