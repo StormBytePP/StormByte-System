@@ -15,7 +15,7 @@ int test_basic_execution() {
     int exit_code = proc.Wait();
     ASSERT_EQUAL("test_basic_execution", 0, exit_code);
 
-    return 0;
+    RETURN_TEST("test_basic_execution", exit_code);
 }
 
 int test_pipeline_execution() {
@@ -36,7 +36,7 @@ int test_pipeline_execution() {
     proc1.Wait();
     proc2.Wait();
 
-    return 0;
+    RETURN_TEST("test_pipeline_execution", 0);
 }
 
 int test_pipeline_sort() {
@@ -56,7 +56,7 @@ int test_pipeline_sort() {
     proc1.Wait();
     proc2.Wait();
 
-    return 0;
+    RETURN_TEST("test_pipeline_sort", 0);
 }
 
 int test_pipeline_find_sort_wc() {
@@ -82,7 +82,7 @@ int test_pipeline_find_sort_wc() {
     proc3.Wait();
     proc4.Wait();
 
-    return 0;
+    RETURN_TEST("test_pipeline_find_sort_wc", 0);
 }
 
 int test_pipeline_echo_sort_wc() {
@@ -107,7 +107,7 @@ int test_pipeline_echo_sort_wc() {
     proc3.Wait();
     proc4.Wait();
 
-    return 0;
+    RETURN_TEST("test_pipeline_echo_sort_wc", 0);
 }
 
 int process_to_ostream() {
@@ -121,7 +121,7 @@ int process_to_ostream() {
 	std::string output = oss.str();
 	ASSERT_EQUAL("process_to_ostream", "Hello, World!\n", output);
 
-	return 0;
+	RETURN_TEST("process_to_ostream", 0);
 }
 
 #else
@@ -138,7 +138,7 @@ int test_basic_execution_windows() {
     DWORD exit_code = proc.Wait();
     ASSERT_EQUAL("test_basic_execution_windows", 0, exit_code);
 
-    return 0;
+    RETURN_TEST("test_basic_execution_windows", exit_code);
 }
 
 int test_complex_command_windows() {
@@ -154,7 +154,7 @@ int test_complex_command_windows() {
     DWORD exit_code = proc.Wait();
     ASSERT_EQUAL("test_complex_command_windows", 0, exit_code);
 
-    return 0;
+    RETURN_TEST("test_complex_command_windows", exit_code);
 }
 #endif
 
