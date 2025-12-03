@@ -10,8 +10,11 @@ project("StormByte C++ Library: System module"
 	HOMEPAGE_URL "https://dev.stormbyte.org/StormByte-System"
 )
 
-enable_testing()
-add_subdirectory(thirdparty)
+include(cmake/asan.cmake)
+
 add_subdirectory(doc)
+add_subdirectory(thirdparty)
 add_subdirectory(lib)
 add_subdirectory(test)
+
+include(cmake/outputflags.cmake)
