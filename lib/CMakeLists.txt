@@ -12,6 +12,11 @@ set_target_properties(StormByte-System PROPERTIES
 	SOVERSION		${CMAKE_PROJECT_VERSION}
 	VERSION 		${CMAKE_PROJECT_VERSION}
 )
+set_target_properties(StormByte-System PROPERTIES
+	LINKER_LANGUAGE CXX
+	SOVERSION		${CMAKE_PROJECT_VERSION}
+	VERSION 		${CMAKE_PROJECT_VERSION}
+)
 
 # Compile options
 if(MSVC)
