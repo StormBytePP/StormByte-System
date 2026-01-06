@@ -29,7 +29,7 @@ Process::Process(Process&& proc) noexcept {
 		m_piProcInfo = proc.m_piProcInfo;
 		ZeroMemory(&proc.m_piProcInfo, sizeof(PROCESS_INFORMATION));
 		m_siStartInfo = proc.m_siStartInfo;
-		ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFO));
+		ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFOW));
 	#endif
 	m_pstdout = proc.m_pstdout;
 	m_pstdout = nullptr;
@@ -51,7 +51,7 @@ Process& Process::operator=(Process&& proc) noexcept {
 			m_piProcInfo = proc.m_piProcInfo;
 			ZeroMemory(&proc.m_piProcInfo, sizeof(PROCESS_INFORMATION));
 			m_siStartInfo = proc.m_siStartInfo;
-			ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFO));
+			ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFOW));
 		#endif
 		m_pstdout = proc.m_pstdout;
 		m_pstdout = nullptr;
@@ -73,7 +73,7 @@ Process::~Process() noexcept {
 	delete m_pstdin;
 	delete m_pstderr;
 	#ifdef WINDOWS
-		ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFO));
+		ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
 		ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
 	#endif
 }
@@ -143,8 +143,8 @@ void Process::Run() {
 	}
 	#else
 	ZeroMemory(&m_piProcInfo,	sizeof(PROCESS_INFORMATION));
-	ZeroMemory(&m_siStartInfo,	sizeof(STARTUPINFO));
-	m_siStartInfo.cb = sizeof(STARTUPINFO);
+	ZeroMemory(&m_siStartInfo,	sizeof(STARTUPINFOW));
+	m_siStartInfo.cb = sizeof(STARTUPINFOW);
 	m_siStartInfo.hStdError = m_pstderr->WriteHandle();
 	m_siStartInfo.hStdOutput = m_pstdout->WriteHandle();
 	m_siStartInfo.hStdInput = m_pstdin->ReadHandle();
@@ -155,17 +155,19 @@ void Process::Run() {
 	m_pstdin->WriteHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
 
 	std::wstring command = FullCommand();
-	TCHAR* szCmdline = const_cast<TCHAR*>(command.c_str());
+	std::vector<wchar_t> cmdline(command.begin(), command.end());
+	cmdline.push_back(L'\0');
+	LPWSTR szCmdline = cmdline.data();
 
-	if (CreateProcess(	NULL,
-						szCmdline,			// command line 
-						NULL,				// process security attributes 
-						NULL,				// primary thread security attributes 
-						TRUE,				// handles are inherited 
-						CREATE_NO_WINDOW,	// creation flags 
-						NULL,				// use parent's environment 
-						NULL,				// use parent's current directory 
-						&m_siStartInfo,		// STARTUPINFO pointer 
+	if (CreateProcessW(    NULL,
+						szCmdline,            // command line 
+						NULL,                // process security attributes 
+						NULL,                // primary thread security attributes 
+						TRUE,                // handles are inherited 
+						CREATE_NO_WINDOW,    // creation flags 
+						NULL,                // use parent's environment 
+						NULL,                // use parent's current directory 
+						&m_siStartInfo,        // STARTUPINFO pointer 
 						&m_piProcInfo)) {
 		// Set the rest of handles not inheritable by other execs
 		m_pstdout->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);

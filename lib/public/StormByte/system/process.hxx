@@ -164,7 +164,7 @@ namespace StormByte::System {
 			#ifdef LINUX
 			pid_t m_pid;										///< Process id
 			#else
-			STARTUPINFO m_siStartInfo;							///< Startup information
+			STARTUPINFOW m_siStartInfo;							///< Startup information (wide)
 			PROCESS_INFORMATION m_piProcInfo;					///< Process information
 			#endif
 			Pipe* m_pstdout;									///< Standard output pipe

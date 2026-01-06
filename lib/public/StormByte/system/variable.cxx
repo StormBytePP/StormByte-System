@@ -33,10 +33,10 @@ std::string Variable::ExpandEnvironmentVariable(const std::string& var) {
 }
 #ifdef WINDOWS
 std::string Variable::ExpandEnvironmentVariable(const std::wstring& var) {
-	TCHAR  infoBuf[INFO_BUFFER_SIZE] = { '\0' };
-	::ExpandEnvironmentStrings(var.c_str(), infoBuf, INFO_BUFFER_SIZE);
+	wchar_t infoBuf[INFO_BUFFER_SIZE] = { L'\0' };
+	::ExpandEnvironmentStringsW(var.c_str(), infoBuf, INFO_BUFFER_SIZE);
 
-	return String::UTF8Encode(infoBuf);
+	return String::UTF8Encode(std::wstring(infoBuf));
 }
 #else
 std::filesystem::path Variable::HomePath() {
