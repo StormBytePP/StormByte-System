@@ -5,14 +5,26 @@
 #include <StormByte/system/process.hxx>
 #include <StormByte/test_handlers.h>
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
 
+namespace {
+
+std::string Trim(std::string s) {
+	auto not_space = [](unsigned char c) { return !std::isspace(c); };
+	s.erase(s.begin(), std::find_if(s.begin(), s.end(), not_space));
+	s.erase(std::find_if(s.rbegin(), s.rend(), not_space).base(), s.end());
+	return s;
+}
+
+} // namespace
+
 #ifdef UNIX
 int test_basic_execution() {
-	// Test a simple command that prints "Hello, World!".
 	std::vector<std::string> args = { "Hello, World!" };
 	StormByte::System::Process proc("/bin/echo", args);
 
@@ -28,11 +40,11 @@ int test_basic_execution() {
 }
 
 int test_pipeline_execution() {
-	// Test a pipeline between two commands.
-	std::vector<std::string> args1 = { "Hello" };
+	// "Hello\n" → 6 bytes (portable: printf, not echo -e)
+	std::vector<std::string> args1 = { "%s", "Hello\n" };
 	std::vector<std::string> args2 = { "-c" };
 
-	StormByte::System::Process proc1("/bin/echo", args1);
+	StormByte::System::Process proc1("/usr/bin/printf", args1);
 	StormByte::System::Process proc2("/usr/bin/wc", args2);
 
 	proc1 >> proc2;
@@ -40,7 +52,8 @@ int test_pipeline_execution() {
 	std::string output;
 	proc2 >> output;
 
-	ASSERT_EQUAL("test_pipeline_execution", "6\n", output);  // "Hello\n" has 6 characters including the newline.
+	// BSD wc pads with spaces; compare trimmed
+	ASSERT_EQUAL("test_pipeline_execution", "6", Trim(output));
 
 	proc1.Wait();
 	proc2.Wait();
@@ -49,10 +62,9 @@ int test_pipeline_execution() {
 }
 
 int test_pipeline_sort() {
-	// Test a pipeline that sorts input.
-	std::vector<std::string> args1 = { "-e", "banana\napple\ncherry" };
+	std::vector<std::string> args1 = { "%s", "banana\napple\ncherry\n" };
 
-	StormByte::System::Process proc1("/bin/echo", args1);
+	StormByte::System::Process proc1("/usr/bin/printf", args1);
 	StormByte::System::Process proc2("/usr/bin/sort");
 
 	proc1 >> proc2;
@@ -60,7 +72,7 @@ int test_pipeline_sort() {
 	std::string output;
 	proc2 >> output;
 
-	ASSERT_EQUAL("test_pipeline_sort", "apple\nbanana\ncherry\n", output);  // Sorted output.
+	ASSERT_EQUAL("test_pipeline_sort", "apple\nbanana\ncherry\n", output);
 
 	proc1.Wait();
 	proc2.Wait();
@@ -69,13 +81,12 @@ int test_pipeline_sort() {
 }
 
 int test_pipeline_find_sort_wc() {
-	// Test a pipeline that finds a pattern, sorts the results, and counts lines.
-	std::vector<std::string> args1 = { "-e", "apple\nbanana\ncherry\napple\nbanana\ncherry" };
+	std::vector<std::string> args1 = { "%s", "apple\nbanana\ncherry\napple\nbanana\ncherry\n" };
 	std::vector<std::string> args2 = { "apple" };
 	std::vector<std::string> args4 = { "-l" };
 
-	StormByte::System::Process proc1("/bin/echo", args1);
-	StormByte::System::Process proc2("/bin/grep", args2);
+	StormByte::System::Process proc1("/usr/bin/printf", args1);
+	StormByte::System::Process proc2("/usr/bin/grep", args2);  // portable (Linux + macOS)
 	StormByte::System::Process proc3("/usr/bin/sort");
 	StormByte::System::Process proc4("/usr/bin/wc", args4);
 
@@ -84,7 +95,7 @@ int test_pipeline_find_sort_wc() {
 	std::string output;
 	proc4 >> output;
 
-	ASSERT_EQUAL("test_pipeline_find_sort_wc", "2\n", output);  // There are 2 lines containing "apple".
+	ASSERT_EQUAL("test_pipeline_find_sort_wc", "2", Trim(output));
 
 	proc1.Wait();
 	proc2.Wait();
@@ -95,11 +106,10 @@ int test_pipeline_find_sort_wc() {
 }
 
 int test_pipeline_echo_sort_wc() {
-	// Test a pipeline that echoes, sorts, and counts lines.
-	std::vector<std::string> args1 = { "-e", "orange\nbanana\napple\ncherry\nbanana\napple" };
+	std::vector<std::string> args1 = { "%s", "orange\nbanana\napple\ncherry\nbanana\napple\n" };
 	std::vector<std::string> args4 = { "-l" };
 
-	StormByte::System::Process proc1("/bin/echo", args1);
+	StormByte::System::Process proc1("/usr/bin/printf", args1);
 	StormByte::System::Process proc2("/usr/bin/sort");
 	StormByte::System::Process proc3("/usr/bin/uniq");
 	StormByte::System::Process proc4("/usr/bin/wc", args4);
@@ -109,7 +119,7 @@ int test_pipeline_echo_sort_wc() {
 	std::string output;
 	proc4 >> output;
 
-	ASSERT_EQUAL("test_pipeline_echo_sort_wc", "4\n", output);  // There are 4 unique sorted lines.
+	ASSERT_EQUAL("test_pipeline_echo_sort_wc", "4", Trim(output));
 
 	proc1.Wait();
 	proc2.Wait();
@@ -120,7 +130,6 @@ int test_pipeline_echo_sort_wc() {
 }
 
 int process_to_ostream() {
-	// Test that a process can be sent to an ostream.
 	std::vector<std::string> args = { "Hello, World!" };
 	StormByte::System::Process proc("/bin/echo", args);
 
@@ -135,7 +144,6 @@ int process_to_ostream() {
 
 #elifdef WINDOWS
 int test_basic_execution_windows() {
-	// Test a simple command that prints "Hello, World!".
 	std::vector<std::string> args = { "Hello, World!" };
 	StormByte::System::Process proc(L"cmd.exe /c echo", args);
 
@@ -151,14 +159,13 @@ int test_basic_execution_windows() {
 }
 
 int test_complex_command_windows() {
-	// Test a more complex command with multiple arguments.
 	std::vector<std::string> args = { "/c", "dir", "/b", "/a-d" };
 	StormByte::System::Process proc(L"cmd.exe", args);
 
 	std::string output;
 	proc >> output;
 
-	ASSERT_FALSE("test_complex_command_windows", output.empty());  // Check that output is not empty.
+	ASSERT_FALSE("test_complex_command_windows", output.empty());
 
 	DWORD exit_code = proc.Wait();
 	ASSERT_EQUAL("test_complex_command_windows", 0, exit_code);
