@@ -2,8 +2,9 @@
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
 
-#ifdef LINUX
+#ifdef UNIX
 #include <sys/wait.h>
+#include <signal.h>
 #else
 #include <tlhelp32.h>
 #endif
@@ -23,7 +24,7 @@ m_program(std::move(prog)), m_arguments(std::move(args)) {
 }
 
 Process::Process(Process&& proc) noexcept {
-	#ifdef LINUX
+	#ifdef UNIX
 		m_pid = proc.m_pid;
 	#else
 		m_piProcInfo = proc.m_piProcInfo;
@@ -32,11 +33,11 @@ Process::Process(Process&& proc) noexcept {
 		ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFOW));
 	#endif
 	m_pstdout = proc.m_pstdout;
-	m_pstdout = nullptr;
+	proc.m_pstdout = nullptr;
 	m_pstdin = proc.m_pstdin;
-	m_pstdin = proc.m_pstderr;
+	proc.m_pstdin = nullptr;
 	m_pstderr = proc.m_pstderr;
-	m_pstderr = nullptr;
+	proc.m_pstderr = nullptr;
 	m_status = proc.m_status;
 	proc.m_status = Status::TERMINATED;
 	m_program = std::move(proc.m_program);
@@ -44,8 +45,8 @@ Process::Process(Process&& proc) noexcept {
 }
 
 Process& Process::operator=(Process&& proc) noexcept {
-	if (this == &proc) {
-		#ifdef LINUX
+	if (this != &proc) {
+		#ifdef UNIX
 			m_pid = proc.m_pid;
 		#else
 			m_piProcInfo = proc.m_piProcInfo;
@@ -54,11 +55,11 @@ Process& Process::operator=(Process&& proc) noexcept {
 			ZeroMemory(&proc.m_siStartInfo, sizeof(STARTUPINFOW));
 		#endif
 		m_pstdout = proc.m_pstdout;
-		m_pstdout = nullptr;
+		proc.m_pstdout = nullptr;
 		m_pstdin = proc.m_pstdin;
-		m_pstdin = proc.m_pstderr;
+		proc.m_pstdin = nullptr;
 		m_pstderr = proc.m_pstderr;
-		m_pstderr = nullptr;
+		proc.m_pstderr = nullptr;
 		m_status = proc.m_status;
 		proc.m_status = Status::TERMINATED;
 		m_program = std::move(proc.m_program);
@@ -104,7 +105,7 @@ void Process::operator<<(const System::_EoF&) {
 }
 
 void Process::Run() {
-	#ifdef LINUX
+	#ifdef UNIX
 	m_pid = fork();
 
 	if (m_pid == 0) {
@@ -190,7 +191,7 @@ void Process::Send(const std::string& str) {
 	*m_pstdin << str;
 }
 
-#ifdef LINUX
+#ifdef UNIX
 int Process::Wait() noexcept {
 	int status = 0;
 
@@ -257,7 +258,7 @@ PROCESS_INFORMATION Process::Pid() {
 #endif
 
 void Process::Suspend() {
-	#ifdef LINUX
+	#ifdef UNIX
 	::kill(m_pid, SIGSTOP);
 	#else
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -285,7 +286,7 @@ void Process::Suspend() {
 }
 
 void Process::Resume() {
-	#ifdef LINUX
+	#ifdef UNIX
 	::kill(m_pid, SIGCONT);
 	#else
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -315,7 +316,7 @@ void Process::Resume() {
 void Process::ConsumeAndForward(Process& exec) {
 	m_forwarder = std::make_unique<std::thread>(
 		[&]{
-			#ifdef LINUX
+			#ifdef UNIX
 			std::vector<char> buffer(Pipe::MAX_READ_BYTES);
 			ssize_t bytes_read;
 			bool chunks_written = true;
@@ -354,7 +355,7 @@ void Process::ConsumeAndForward(Process& exec) {
 				}
 				status = WaitForSingleObject(m_piProcInfo.hProcess, 0);
 			} while (chunks_written && status == WAIT_TIMEOUT);
-			/* See Linux version comment above, except that in Windows we don't need */
+			/* See UNIX version comment above, except that in Windows we don't need */
 			/* to consume exceeding output before program can exit gracefully        */
 			if (!chunks_written) {
 				TerminateProcess(m_piProcInfo.hProcess, 0);

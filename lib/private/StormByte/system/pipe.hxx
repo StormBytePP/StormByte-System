@@ -2,7 +2,6 @@
 
 #include <StormByte/system/visibility.h>
 
-
 #include <memory>
 #include <optional>
 #include <string>
@@ -11,7 +10,7 @@
 #ifdef WINDOWS
 #include <windows.h>
 #else
-#include <sys/poll.h>
+#include <poll.h>
 #endif
 
 /**
@@ -60,7 +59,7 @@ namespace StormByte::System {
 			 */
 			~Pipe() noexcept;
 
-			#ifdef LINUX
+			#ifdef UNIX
 			/**
 			 * Binds a file descriptor to the pipe
 			 * @param fd file descriptor
@@ -190,7 +189,8 @@ namespace StormByte::System {
 			#else
 			int m_fd[2];										///< File descriptors
 			#endif
-			#ifdef LINUX
+
+			#ifdef UNIX
 			/**
 			 * Binds a file descriptor to the pipe
 			 * @param src file descriptor
@@ -213,10 +213,10 @@ namespace StormByte::System {
 			/**
 			 * Sets the handle information
 			 * @param handle handle
-			 * @param str string
-			 * @return bytes written
+			 * @param mask mask
+			 * @param flags flags
 			 */
-			void 												HandleInformation(HANDLE handle, DWORD, DWORD);
+			void 												HandleInformation(HANDLE handle, DWORD mask, DWORD flags);
 			#endif
 	};
 }

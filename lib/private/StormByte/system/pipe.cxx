@@ -2,7 +2,7 @@
 
 using namespace StormByte::System;
 
-#ifdef LINUX
+#ifdef UNIX
 #include <fcntl.h>
 #include <limits.h>
 #include <signal.h>
@@ -13,9 +13,16 @@ SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 #include <vector>
 
 Pipe::Pipe() {
-	#ifdef LINUX
+	#ifdef UNIX
 	signal(SIGPIPE, SIG_IGN);
+	#ifdef LINUX
 	(void)pipe2(m_fd, O_CLOEXEC);
+	#else
+	// macOS and other UNIX: pipe(2) does not take O_CLOEXEC
+	(void)pipe(m_fd);
+	fcntl(m_fd[0], F_SETFD, FD_CLOEXEC);
+	fcntl(m_fd[1], F_SETFD, FD_CLOEXEC);
+	#endif
 	#else
 	CreatePipe(&m_fd[0], &m_fd[1], &m_sAttr, 0);
 	#endif
@@ -26,7 +33,7 @@ Pipe::~Pipe() noexcept {
 	CloseWrite();
 }
 
-#ifdef LINUX
+#ifdef UNIX
 void Pipe::BindRead(int dest) noexcept {
 	Bind(m_fd[0], dest);
 }
@@ -92,7 +99,7 @@ DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 
 /** This function will write chunks until write HUPs taking ownership    **/
 /** of the provided data to write. Empty parameter is Undefined Behavior **/
-#ifdef LINUX
+#ifdef UNIX
 bool Pipe::WriteAtomic(std::string&& data) {
 	std::string out = std::move(data);
 	bool can_continue;
@@ -135,7 +142,7 @@ Pipe& Pipe::operator<<(const std::string& data) {
 }
 
 std::string& Pipe::operator>>(std::string& out) const {
-	#ifdef LINUX
+	#ifdef UNIX
 	ssize_t bytes;
 	#else
 	DWORD bytes;
@@ -149,7 +156,7 @@ std::string& Pipe::operator>>(std::string& out) const {
 	return out;
 }
 
-#ifdef LINUX
+#ifdef UNIX
 void Pipe::Bind(int& src, int dest) noexcept {
 	dup2(src, dest);
 	close(src);
@@ -171,4 +178,3 @@ void Pipe::HandleInformation(HANDLE handle, DWORD mask, DWORD flags) {
 	SetHandleInformation(handle, mask, flags);
 }
 #endif
-

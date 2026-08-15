@@ -5,10 +5,10 @@
 #include <filesystem>
 #include <iostream>
 #include <thread>
-#ifdef LINUX
-#include <unistd.h>
-#else
+#ifdef WINDOWS
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 #include <vector>
 
@@ -78,7 +78,8 @@ namespace StormByte::System {
 			 * Destructor
 			 */
 			virtual ~Process() noexcept;
-			#ifdef LINUX
+
+			#ifdef UNIX
 			/**
 			 * Waits for the process to finish
 			 * @return exit code
@@ -161,7 +162,7 @@ namespace StormByte::System {
 
 		protected:
 			Status m_status;									///< Process status
-			#ifdef LINUX
+			#ifdef UNIX
 			pid_t m_pid;										///< Process id
 			#else
 			STARTUPINFOW m_siStartInfo;							///< Startup information (wide)

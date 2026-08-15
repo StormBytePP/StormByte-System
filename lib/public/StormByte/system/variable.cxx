@@ -1,15 +1,15 @@
 #include <StormByte/system/variable.hxx>
 #include <StormByte/string.hxx>
 
-#ifdef LINUX
+#ifdef WINDOWS
+#include <windows.h>
+#include <tchar.h>
+#define INFO_BUFFER_SIZE 32767
+#else
 #include <pwd.h>
 #include <regex>
 #include <sys/types.h>
 #include <unistd.h>
-#else
-#include <windows.h>
-#include <tchar.h>
-#define INFO_BUFFER_SIZE 32767
 #endif
 
 using namespace StormByte::System;
