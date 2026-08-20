@@ -7,144 +7,139 @@
 
 /**
  * @namespace System
- * @brief All the classes for handling system exceptions
+ * @brief System utilities: processes, pipes, environment variables.
  */
 namespace StormByte::System {
 	/**
 	 * @class Exception
-	 * @brief Exception base class for System
-	 * 
-	 * The purpose of this class is to handle a generic exception for all the StormByte library
-	 * and also to cover the Windows/Linux differences in exception handling, specially in passing
-	 * std::string across library boundaries handling the const char* memory management.
+	 * @brief Base exception for the System module.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Exception: public StormByte::Exception {
 		public:
 			/**
-			 * Constructor
-			 * @param message message
+			 * @param message Error message.
 			 */
 			Exception(const std::string& message);
 
 			/**
-			 * Copy constructor
+			 * Copy constructor.
 			 */
-			Exception(const Exception&)					= default;
+			Exception(const Exception&) = default;
 
 			/**
-			 * Move constructor
+			 * Move constructor.
 			 */
-			Exception(Exception&&) noexcept				= default;
+			Exception(Exception&&) noexcept = default;
 
 			/**
-			 * Assignment operator
+			 * Copy assignment.
 			 */
-			Exception& operator=(const Exception&)		= default;
+			Exception& operator=(const Exception&) = default;
 
 			/**
-			 * Move operator
+			 * Move assignment.
 			 */
-			Exception& operator=(Exception&&) noexcept	= default;
+			Exception& operator=(Exception&&) noexcept = default;
 
 			/**
-			 * Destructor
+			 * Destructor.
 			 */
-			virtual ~Exception() noexcept override		= default;
+			virtual ~Exception() noexcept override = default;
 	};
 
 	/**
 	 * @class FileIOError
-	 * @brief Exception thrown when a file can not be opened or written
+	 * @brief Thrown when a file cannot be opened for read or write.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC FileIOError final: public Exception {
 		public:
 			/**
 			 * @enum Operation
-			 * @brief File operation
+			 * @brief Failed file operation.
 			 */
-			enum class Operation { Read = 0, Write }; 
+			enum class Operation {
+				Read = 0,	///< Open for reading
+				Write		///< Open for writing
+			};
 
 			/**
-			 * Converts Operation to string
-			 * @param op operation
-			 * @return string
+			 * @param op Operation.
+			 * @return "read", "write", or "unknown".
 			 */
 			constexpr static const char* operation_to_string(const Operation& op) noexcept {
-				switch(op) {
-					case Operation::Read: 	return "read";
+				switch (op) {
+					case Operation::Read:	return "read";
 					case Operation::Write:	return "write";
 					default:				return "unknown";
 				}
 			}
 
 			/**
-			 * Constructor
-			 * @param file file path
-			 * @param operation operation
+			 * @param file File path.
+			 * @param operation Failed operation.
 			 */
 			FileIOError(const std::filesystem::path& file, const Operation& operation);
 
 			/**
-			 * Copy constructor
+			 * Copy constructor.
 			 */
-			FileIOError(const FileIOError&)				= default;
+			FileIOError(const FileIOError&) = default;
 
 			/**
-			 * Move constructor
+			 * Move constructor.
 			 */
-			FileIOError(FileIOError&&) noexcept			= default;
+			FileIOError(FileIOError&&) noexcept = default;
 
 			/**
-			 * Assignment operator
+			 * Copy assignment.
 			 */
-			FileIOError& operator=(const FileIOError&)	= default;
+			FileIOError& operator=(const FileIOError&) = default;
 
 			/**
-			 * Move assignment operator
+			 * Move assignment.
 			 */
-			FileIOError& operator=(FileIOError&&)		= default;
+			FileIOError& operator=(FileIOError&&) = default;
 
 			/**
-			 * Destructor
+			 * Destructor.
 			 */
-			~FileIOError() noexcept override			= default;
+			~FileIOError() noexcept override = default;
 	};
 
 	/**
 	 * @class ExecutableNotFound
-	 * @brief Exception thrown when an executable is not found
+	 * @brief Thrown when a program cannot be executed / was not found.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC ExecutableNotFound: public Exception {
 		public:
 			/**
-			 * Constructor
-			 * @param exec Executable which was not found
+			 * @param exec Path or name of the missing executable.
 			 */
 			ExecutableNotFound(const std::filesystem::path& exec);
 
 			/**
-			 * Copy constructor
+			 * Copy constructor.
 			 */
-			ExecutableNotFound(const ExecutableNotFound&)					= default;
+			ExecutableNotFound(const ExecutableNotFound&) = default;
 
 			/**
-			 * Move constructor
+			 * Move constructor.
 			 */
-			ExecutableNotFound(ExecutableNotFound&&) noexcept				= default;
+			ExecutableNotFound(ExecutableNotFound&&) noexcept = default;
 
 			/**
-			 * Assignment operator
+			 * Copy assignment.
 			 */
-			ExecutableNotFound& operator=(const ExecutableNotFound&)		= default;
+			ExecutableNotFound& operator=(const ExecutableNotFound&) = default;
 
 			/**
-			 * Move operator
+			 * Move assignment.
 			 */
-			ExecutableNotFound& operator=(ExecutableNotFound&&) noexcept	= default;
+			ExecutableNotFound& operator=(ExecutableNotFound&&) noexcept = default;
 
 			/**
-			 * Destructor
+			 * Destructor.
 			 */
-			~ExecutableNotFound() noexcept override							= default;
+			~ExecutableNotFound() noexcept override = default;
 	};
 }

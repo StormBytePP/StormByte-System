@@ -14,197 +14,193 @@
 
 /**
  * @namespace System
- * @brief All the classes for handling system exceptions
+ * @brief System utilities: processes, pipes, environment variables.
  */
 namespace StormByte::System {
-	class Pipe;												///< Forward declaration of Pipe class
+	class Pipe;	///< Forward declaration
+
 	/**
 	 * @struct _EoF
-	 * @brief End of file struct
+	 * @brief Tag type to close process stdin (write end).
 	 */
 	struct {} typedef _EoF;
 
 	/**
-	 * End of file constant
+	 * Sentinel used as `process << System::EoF` to close stdin.
 	 */
 	static constexpr const _EoF EoF = {};
 
 	/**
 	 * @class Process
-	 * @brief Process class for running external programs
-	 * They will run immediately after creation
+	 * @brief Runs an external program with piped stdin/stdout/stderr.
+	 *
+	 * Starts immediately on construction. Move-only.
+	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout, Suspend/Resume.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Process {
 		public:
 			/**
-			 * Constructor
-			 * @param prog program
-			 * @param args arguments
+			 * @param prog Executable path or name.
+			 * @param args Argument list (not including argv[0]).
 			 */
 			Process(const std::filesystem::path& prog, const std::vector<std::string>& args = std::vector<std::string>());
 
 			/**
-			 * Constructor
-			 * @param prog program
-			 * @param args arguments
+			 * @param prog Executable path or name (moved).
+			 * @param args Argument list (moved).
 			 */
 			Process(std::filesystem::path&& prog, std::vector<std::string>&& args = std::vector<std::string>());
 
 			/**
-			 * Copy constructor (deleted)
-			 * @param proc Process
+			 * Copy constructor (deleted).
 			 */
-			Process(const Process& proc)						= delete;
+			Process(const Process& proc) = delete;
 
 			/**
-			 * Move constructor
-			 * @param proc Process
+			 * Move constructor.
 			 */
 			Process(Process&& proc) noexcept;
 
 			/**
-			 * Assignment operator (deleted)
-			 * @param proc Process
+			 * Copy assignment (deleted).
 			 */
-			Process& operator=(const Process& proc)				= delete;
+			Process& operator=(const Process& proc) = delete;
 
 			/**
-			 * Move assignment operator
-			 * @param proc Process
+			 * Move assignment.
 			 */
 			Process& operator=(Process&& proc) noexcept;
 
 			/**
-			 * Destructor
+			 * Destructor (waits and frees pipes).
 			 */
 			virtual ~Process() noexcept;
 
 			#ifdef UNIX
 			/**
-			 * Waits for the process to finish
-			 * @return exit code
+			 * Blocks until the process exits.
+			 * @return Exit code, or -1 on failure.
 			 */
-			int 												Wait() noexcept;
+			int Wait() noexcept;
 
 			/**
-			 * Gets the process id
-			 * @return process id
+			 * @return Child PID.
 			 */
-			pid_t 												Pid() noexcept;
+			pid_t Pid() noexcept;
 			#else
 			/**
-			 * Waits for the process to finish
-			 * @return exit code
+			 * Blocks until the process exits.
+			 * @return Exit code, or (DWORD)-1 on failure.
 			 */
-			DWORD 												Wait() noexcept;
+			DWORD Wait() noexcept;
 
 			/**
-			 * Gets the process id
-			 * @return process id
+			 * @return Windows PROCESS_INFORMATION.
 			 */
-			PROCESS_INFORMATION 								Pid();
+			PROCESS_INFORMATION Pid();
 			#endif
-			/**
-			 * Suspends the process
-			 */
-			void 												Suspend();
 
 			/**
-			 * Resumes the process
+			 * Suspends the child process.
 			 */
-			void 												Resume();
+			void Suspend();
 
 			/**
-			 * Binds current process stdout to a process stdin
-			 * @param proc target Process
-			 * @return Process reference
+			 * Resumes a suspended child process.
 			 */
-			Process& 											operator>>(Process& proc);
+			void Resume();
 
 			/**
-			 * Outputs the process stdout to a string
-			 * @param str string
-			 * @return string reference
+			 * Forwards this process stdout to @p proc stdin (background thread).
+			 * @param proc Target process.
+			 * @return Reference to @p proc.
 			 */
-			std::string& 										operator>>(std::string& str) const;
+			Process& operator>>(Process& proc);
 
 			/**
-			 * Outputs the process stdout to an ostream
-			 * @param ostream ostream
-			 * @param proc Process
-			 * @return ostream reference
+			 * Reads remaining stdout into @p str.
+			 * @param str Destination string.
+			 * @return Reference to @p str.
 			 */
-			friend STORMBYTE_SYSTEM_PUBLIC std::ostream& 		operator<<(std::ostream& ostream, const Process& proc);
+			std::string& operator>>(std::string& str) const;
 
 			/**
-			 * Writes to the process stdin
-			 * @param str string
-			 * @return Process reference
+			 * Streams process stdout to an ostream.
+			 * @param ostream Output stream.
+			 * @param proc Process.
+			 * @return @p ostream.
 			 */
-			Process& 											operator<<(const std::string& str);
+			friend STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 
 			/**
-			 * Writes EOF to the process stdin
-			 * @param eof EoF
+			 * Writes @p str to process stdin.
+			 * @param str Data.
+			 * @return *this.
 			 */
-			void 												operator<<(const System::_EoF& eof);
+			Process& operator<<(const std::string& str);
 
 			/**
-			 * Process status
+			 * Closes process stdin (write end).
+			 * @param eof EoF sentinel.
+			 */
+			void operator<<(const System::_EoF& eof);
+
+			/**
 			 * @enum Status
-			 * @brief Process status
+			 * @brief Process lifecycle state.
 			 */
-			enum class Status:unsigned short {
-				RUNNING,	///< Process is running
-				SUSPENDED,	///< Process is suspended
-				TERMINATED	///< Process is terminated
+			enum class Status: unsigned short {
+				RUNNING,	///< Running
+				SUSPENDED,	///< Suspended
+				TERMINATED	///< Finished / cleaned up
 			};
 
 		protected:
-			Status m_status;									///< Process status
+			Status m_status;									///< Current status
 			#ifdef UNIX
-			pid_t m_pid;										///< Process id
+			pid_t m_pid;										///< Child PID
 			#else
-			STARTUPINFOW m_siStartInfo;							///< Startup information (wide)
-			PROCESS_INFORMATION m_piProcInfo;					///< Process information
+			STARTUPINFOW m_siStartInfo;							///< Startup info
+			PROCESS_INFORMATION m_piProcInfo;					///< Process info
 			#endif
-			Pipe* m_pstdout;									///< Standard output pipe
-			Pipe* m_pstdin;										///< Standard input pipe
-			Pipe* m_pstderr;									///< Standard error pipe
+			Pipe* m_pstdout;									///< stdout pipe
+			Pipe* m_pstdin;										///< stdin pipe
+			Pipe* m_pstderr;									///< stderr pipe
 			std::filesystem::path m_program;					///< Program path
-			std::vector<std::string> m_arguments;				///< Program arguments
+			std::vector<std::string> m_arguments;				///< Arguments
 			std::unique_ptr<std::thread> m_forwarder;			///< Forwarder thread
-			
+
 		private:
 			/**
-			 * Sends a string to the process stdin
-			 * @param str string
+			 * Writes to stdin.
+			 * @param str Data.
 			 */
-			void 												Send(const std::string& str);
+			void Send(const std::string& str);
 
 			/**
-			 * Runs the process
+			 * Spawns the child process.
 			 */
-			void 												Run();
+			void Run();
 
 			/**
-			 * Consumes current process stdout and forwards it to another process stdin until it finishes
-			 * @param exec Process
+			 * Consumes stdout and forwards to another process stdin.
+			 * @param exec Target process.
 			 */
-			void 												ConsumeAndForward(Process&);
+			void ConsumeAndForward(Process& exec);
+
 			#ifdef WINDOWS
 			/**
-			 * Gets the full command
-			 * @return full command
+			 * @return Full command line as wide string.
 			 */
-			std::wstring 										FullCommand() const;
+			std::wstring FullCommand() const;
 			#endif
 	};
+
 	/**
-	 * Outputs the process to an ostream
-	 * @param ostream ostream
-	 * @param proc Process
-	 * @return ostream reference
+	 * Streams process stdout to an ostream.
+	 * @param ostream Output stream.
+	 * @param proc Process.
+	 * @return @p ostream.
 	 */
-	STORMBYTE_SYSTEM_PUBLIC std::ostream& 						operator<<(std::ostream&, const Process&);
+	STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 }

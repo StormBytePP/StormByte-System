@@ -7,50 +7,53 @@
 
 /**
  * @namespace System
- * @brief All the classes for handling system exceptions
+ * @brief System utilities: processes, pipes, environment variables.
  */
 namespace StormByte::System {
 	/**
 	 * @class Variable
-	 * @brief Handling system variables
+	 * @brief Environment variable expansion helpers.
+	 *
+	 * On Windows uses ExpandEnvironmentStrings; on UNIX expands `~` to the home path.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Variable {
 		public:
 			/**
-			 * Expands environment variables in a string
-			 * @param str string
-			 * @return expanded string
+			 * Expands environment variables in @p str.
+			 * @param str Input string.
+			 * @return Expanded string.
 			 */
-			static std::string 				Expand(const std::string& str);
+			static std::string Expand(const std::string& str);
+
 			#ifdef WINDOWS
 			/**
-			 * Expands environment variables in a string
-			 * @param str string
-			 * @return expanded string
+			 * Expands environment variables in a wide string.
+			 * @param str Input wide string.
+			 * @return Expanded UTF-8 string.
 			 */
-			static std::string 				Expand(const std::wstring&);
+			static std::string Expand(const std::wstring& str);
 			#endif
 
 		private:
 			/**
-			 * Expands environment variables in a string
-			 * @param str string
-			 * @return expanded string
+			 * Platform implementation for UTF-8 / narrow strings.
+			 * @param str Input.
+			 * @return Expanded string.
 			 */
-			static std::string				ExpandEnvironmentVariable(const std::string& str);
+			static std::string ExpandEnvironmentVariable(const std::string& str);
+
 			#ifdef WINDOWS
 			/**
-			 * Expands environment variables in a string
-			 * @param str string
-			 * @return expanded string
+			 * Platform implementation for wide strings.
+			 * @param str Input.
+			 * @return Expanded UTF-8 string.
 			 */
-			static std::string				ExpandEnvironmentVariable(const std::wstring&);
+			static std::string ExpandEnvironmentVariable(const std::wstring& str);
 			#else
 			/**
-			 * Gets the home path
-			 * @return home path
+			 * @return Current user home directory.
 			 */
-			static std::filesystem::path	HomePath();
+			static std::filesystem::path HomePath();
 			#endif
 	};
 }

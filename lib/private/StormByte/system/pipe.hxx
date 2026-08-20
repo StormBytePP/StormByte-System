@@ -15,208 +15,208 @@
 
 /**
  * @namespace System
- * @brief All the classes for handling system exceptions
+ * @brief System utilities: processes, pipes, environment variables.
  */
 namespace StormByte::System {
 	/**
 	 * @class Pipe
-	 * @brief Pipe class for interprocess communication
+	 * @brief Cross-platform anonymous pipe for process IPC.
+	 *
+	 * UNIX: pipe(2) / pipe2; Windows: CreatePipe. Move-only.
 	 */
 	class STORMBYTE_SYSTEM_PRIVATE Pipe {
 		public:
 			/**
-			 * Maximum bytes to read
+			 * Maximum bytes per read operation (4 MiB).
 			 */
-			static constexpr const size_t MAX_READ_BYTES		= 4 * 1024 * 1024; // 4MiB
+			static constexpr const size_t MAX_READ_BYTES = 4 * 1024 * 1024;
 
 			/**
-			 * Constructor
+			 * Creates a new pipe pair.
 			 */
 			Pipe();
 
 			/**
-			 * Copy constructor
+			 * Copy constructor (deleted).
 			 */
-			Pipe(const Pipe&)									= delete;
+			Pipe(const Pipe&) = delete;
 
 			/**
-			 * Move constructor
+			 * Move constructor.
 			 */
-			Pipe(Pipe&&)										= default;
+			Pipe(Pipe&&) = default;
 
 			/**
-			 * Assignment operator
+			 * Copy assignment (deleted).
 			 */
-			Pipe& operator=(const Pipe&)						= delete;
+			Pipe& operator=(const Pipe&) = delete;
 
 			/**
-			 * Move operator
+			 * Move assignment.
 			 */
-			Pipe& operator=(Pipe&&)								= default;
+			Pipe& operator=(Pipe&&) = default;
 
 			/**
-			 * Destructor
+			 * Closes both ends.
 			 */
 			~Pipe() noexcept;
 
 			#ifdef UNIX
 			/**
-			 * Binds a file descriptor to the pipe
-			 * @param fd file descriptor
+			 * Dup2 read end onto @p fd.
+			 * @param fd Destination file descriptor.
 			 */
-			void 												BindRead(int fd) noexcept;
+			void BindRead(int fd) noexcept;
 
 			/**
-			 * Binds a file descriptor to the pipe
-			 * @param fd pipe descriptor
+			 * Binds read end to another pipe's read side (if implemented in .cxx).
+			 * @param fd Other pipe.
 			 */
-			void 												BindRead(Pipe& fd) noexcept;
+			void BindRead(Pipe& fd) noexcept;
 
 			/**
-			 * Binds a file descriptor to the pipe
-			 * @param fd file descriptor
+			 * Dup2 write end onto @p fd.
+			 * @param fd Destination file descriptor.
 			 */
-			void 												BindWrite(int fd) noexcept;
+			void BindWrite(int fd) noexcept;
 
 			/**
-			 * Binds a file descriptor to the pipe
-			 * @param fd pipe descriptor
+			 * Binds write end to another pipe.
+			 * @param fd Other pipe.
 			 */
-			void 												BindWrite(Pipe& fd) noexcept;
+			void BindWrite(Pipe& fd) noexcept;
 
 			/**
-			 * Writes to the pipe
-			 * @param str string
-			 * @return bytes written
+			 * Writes a string to the write end.
+			 * @param str Data.
+			 * @return Bytes written.
 			 */
-			ssize_t 											Write(const std::string& str);
+			ssize_t Write(const std::string& str);
 
 			/**
-			 * Writes EOF to the pipe
+			 * @return true if the write end is no longer writable (HUP/ERR).
 			 */
-			bool 												WriteEOF() const;
+			bool WriteEOF() const;
 
 			/**
-			 * Reads from the pipe
-			 * @param buffer buffer
-			 * @param size size
-			 * @return bytes read
+			 * Reads into @p buffer up to @p size bytes.
+			 * @param buffer Destination.
+			 * @param size Max bytes.
+			 * @return Bytes read.
 			 */
-			ssize_t 											Read(std::vector<char>& buffer, ssize_t size) const;
+			ssize_t Read(std::vector<char>& buffer, ssize_t size) const;
 
 			/**
-			 * Reads EOF from the pipe
+			 * @return true if the read end reports HUP/ERR.
 			 */
-			bool 												ReadEOF() const;
+			bool ReadEOF() const;
 			#else
 			/**
-			 * Sets the read handle information
-			 * @param mask mask
-			 * @param flags flags
+			 * Sets handle information on the read end.
+			 * @param mask Mask.
+			 * @param flags Flags.
 			 */
-			void 												ReadHandleInformation(DWORD mask, DWORD flags);
+			void ReadHandleInformation(DWORD mask, DWORD flags);
 
 			/**
-			 * Sets the write handle information
-			 * @param mask mask
-			 * @param flags flags
+			 * Sets handle information on the write end.
+			 * @param mask Mask.
+			 * @param flags Flags.
 			 */
-			void 												WriteHandleInformation(DWORD mask, DWORD flags);
+			void WriteHandleInformation(DWORD mask, DWORD flags);
 
 			/**
-			 * Gets the read handle
-			 * @return handle
+			 * @return Read HANDLE.
 			 */
-			HANDLE 												ReadHandle() const;
+			HANDLE ReadHandle() const;
 
 			/**
-			 * Gets the write handle
-			 * @return handle
+			 * @return Write HANDLE.
 			 */
-			HANDLE 												WriteHandle() const;
+			HANDLE WriteHandle() const;
 
 			/**
-			 * Writes to the pipe
-			 * @param str string
-			 * @return bytes written
+			 * Writes a string to the write end.
+			 * @param str Data.
+			 * @return Bytes written.
 			 */
-			DWORD 												Write(const std::string& str);
+			DWORD Write(const std::string& str);
 
 			/**
-			 * Reads from the pipe
-			 * @param buffer buffer
-			 * @param size size
-			 * @return bytes read
+			 * Reads into @p buffer up to @p size bytes.
+			 * @param buffer Destination.
+			 * @param size Max bytes.
+			 * @return Bytes read.
 			 */
-			DWORD 												Read(std::vector<CHAR>& buffer, DWORD size) const;
+			DWORD Read(std::vector<CHAR>& buffer, DWORD size) const;
 			#endif
 
 			/**
-			 * Writes to the pipe
-			 * @param str string
-			 * @return boolean indicating if it was written
+			 * Writes @p str in chunks until complete or peer closes.
+			 * @param str Data (moved).
+			 * @return true if all data was written.
 			 */
-			bool 												WriteAtomic(std::string&& str);
+			bool WriteAtomic(std::string&& str);
 
 			/**
-			 * Close read end
+			 * Closes the read end.
 			 */
-			void 												CloseRead() noexcept;
+			void CloseRead() noexcept;
 
 			/**
-			 * Close write end
+			 * Closes the write end.
 			 */
-			void 												CloseWrite() noexcept;
+			void CloseWrite() noexcept;
 
 			/**
-			 * Writes to the pipe
-			 * @param str string
-			 * @return Pipe reference
+			 * Writes @p str via Write().
+			 * @param str Data.
+			 * @return *this.
 			 */
-			Pipe& 												operator<<(const std::string& str);
+			Pipe& operator<<(const std::string& str);
 
 			/**
-			 * Reads from the pipe
-			 * @param str string
-			 * @return Pipe reference
+			 * Reads until EOF into @p str.
+			 * @param str Destination.
+			 * @return Reference to @p str.
 			 */
-			std::string& 										operator>>(std::string& str) const;
+			std::string& operator>>(std::string& str) const;
 
 		private:
 			#ifdef WINDOWS
-			HANDLE m_fd[2];										///< File descriptors
-			static SECURITY_ATTRIBUTES m_sAttr;					///< Security attributes
+			HANDLE m_fd[2];						///< Read / write handles
+			static SECURITY_ATTRIBUTES m_sAttr;	///< Inherit attributes
 			#else
-			int m_fd[2];										///< File descriptors
+			int m_fd[2];						///< Read / write fds
 			#endif
 
 			#ifdef UNIX
 			/**
-			 * Binds a file descriptor to the pipe
-			 * @param src file descriptor
-			 * @param dst destination
+			 * Dup2 and close source.
+			 * @param src Source fd (set to closed).
+			 * @param dst Destination fd.
 			 */
-			void 												Bind(int& src, int dst) noexcept;
+			void Bind(int& src, int dst) noexcept;
 
 			/**
-			 * Closes a file descriptor
-			 * @param fd file descriptor
+			 * Closes @p fd if open.
+			 * @param fd File descriptor.
 			 */
-			void 												Close(int& fd) noexcept;
+			void Close(int& fd) noexcept;
 			#else
 			/**
-			 * Closes a handle
-			 * @param handle handle
+			 * Closes @p handle if valid.
+			 * @param handle Handle.
 			 */
-			void 												Close(HANDLE& handle) noexcept;
+			void Close(HANDLE& handle) noexcept;
 
 			/**
-			 * Sets the handle information
-			 * @param handle handle
-			 * @param mask mask
-			 * @param flags flags
+			 * SetHandleInformation wrapper.
+			 * @param handle Handle.
+			 * @param mask Mask.
+			 * @param flags Flags.
 			 */
-			void 												HandleInformation(HANDLE handle, DWORD mask, DWORD flags);
+			void HandleInformation(HANDLE handle, DWORD mask, DWORD flags);
 			#endif
 	};
 }
