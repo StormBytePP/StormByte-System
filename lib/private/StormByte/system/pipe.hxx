@@ -1,28 +1,26 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte.
- *
- * StormByte is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * StormByte is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte. If not, see <https://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte.
+*
+* StormByte is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* StormByte is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
 #include <StormByte/system/visibility.h>
 
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -41,7 +39,8 @@ namespace StormByte::System {
 	 * @class Pipe
 	 * @brief Cross-platform anonymous pipe for process IPC.
 	 *
-	 * UNIX: pipe(2) / pipe2; Windows: CreatePipe. Move-only.
+	 * UNIX: pipe(2)/pipe2; Windows: CreatePipe. Move-only.
+	 * @note On UNIX, SIGPIPE is ignored process-wide once (first Pipe construction).
 	 */
 	class STORMBYTE_SYSTEM_PRIVATE Pipe {
 		public:
@@ -88,22 +87,10 @@ namespace StormByte::System {
 			void BindRead(int fd) noexcept;
 
 			/**
-			 * Binds read end to another pipe's read side (if implemented in .cxx).
-			 * @param fd Other pipe.
-			 */
-			void BindRead(Pipe& fd) noexcept;
-
-			/**
 			 * Dup2 write end onto @p fd.
 			 * @param fd Destination file descriptor.
 			 */
 			void BindWrite(int fd) noexcept;
-
-			/**
-			 * Binds write end to another pipe.
-			 * @param fd Other pipe.
-			 */
-			void BindWrite(Pipe& fd) noexcept;
 
 			/**
 			 * Writes a string to the write end.
@@ -172,7 +159,7 @@ namespace StormByte::System {
 
 			/**
 			 * Writes @p str in chunks until complete or peer closes.
-			 * @param str Data (moved).
+			 * @param str Data (moved). Empty string succeeds immediately.
 			 * @return true if all data was written.
 			 */
 			bool WriteAtomic(std::string&& str);
@@ -212,7 +199,7 @@ namespace StormByte::System {
 			#ifdef UNIX
 			/**
 			 * Dup2 and close source.
-			 * @param src Source fd (set to closed).
+			 * @param src Source fd (set to -1).
 			 * @param dst Destination fd.
 			 */
 			void Bind(int& src, int dst) noexcept;

@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte.
- *
- * StormByte is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * StormByte is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte. If not, see <https://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte.
+*
+* StormByte is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* StormByte is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -23,6 +23,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <memory>
 #include <thread>
 #ifdef WINDOWS
 #include <windows.h>
@@ -54,7 +55,8 @@ namespace StormByte::System {
 	 * @brief Runs an external program with piped stdin/stdout/stderr.
 	 *
 	 * Starts immediately on construction. Move-only.
-	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout, Suspend/Resume.
+	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout/stderr,
+	 * Suspend/Resume. @ref Wait() blocks until exit (no timeout).
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Process {
 		public:
@@ -76,7 +78,7 @@ namespace StormByte::System {
 			Process(const Process& proc) = delete;
 
 			/**
-			 * Move constructor.
+			 * Move constructor (invalidates the source).
 			 */
 			Process(Process&& proc) noexcept;
 
@@ -86,35 +88,35 @@ namespace StormByte::System {
 			Process& operator=(const Process& proc) = delete;
 
 			/**
-			 * Move assignment.
+			 * Move assignment (invalidates the source).
 			 */
 			Process& operator=(Process&& proc) noexcept;
 
 			/**
-			 * Destructor (waits and frees pipes).
+			 * Destructor (waits if still owning a child, then frees pipes).
 			 */
 			virtual ~Process() noexcept;
 
 			#ifdef UNIX
 			/**
-			 * Blocks until the process exits.
-			 * @return Exit code, or -1 on failure.
+			 * Blocks until the process exits (no timeout).
+			 * @return Exit code, or -1 on failure / already reaped.
 			 */
 			int Wait() noexcept;
 
 			/**
-			 * @return Child PID.
+			 * @return Child PID, or -1 if not owning a process.
 			 */
 			pid_t Pid() noexcept;
 			#else
 			/**
-			 * Blocks until the process exits.
+			 * Blocks until the process exits (no timeout).
 			 * @return Exit code, or (DWORD)-1 on failure.
 			 */
 			DWORD Wait() noexcept;
 
 			/**
-			 * @return Windows PROCESS_INFORMATION.
+			 * @return Windows PROCESS_INFORMATION (zeroed if moved-from).
 			 */
 			PROCESS_INFORMATION Pid();
 			#endif
@@ -144,10 +146,14 @@ namespace StormByte::System {
 			std::string& operator>>(std::string& str) const;
 
 			/**
+			 * Reads remaining stderr into @p str.
+			 * @param str Destination string.
+			 * @return Reference to @p str.
+			 */
+			std::string& Stderr(std::string& str) const;
+
+			/**
 			 * Streams process stdout to an ostream.
-			 * @param ostream Output stream.
-			 * @param proc Process.
-			 * @return @p ostream.
 			 */
 			friend STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 
@@ -177,14 +183,14 @@ namespace StormByte::System {
 		protected:
 			Status m_status;									///< Current status
 			#ifdef UNIX
-			pid_t m_pid;										///< Child PID
+			pid_t m_pid;										///< Child PID (-1 if none)
 			#else
 			STARTUPINFOW m_siStartInfo;							///< Startup info
 			PROCESS_INFORMATION m_piProcInfo;					///< Process info
 			#endif
-			Pipe* m_pstdout;									///< stdout pipe
-			Pipe* m_pstdin;										///< stdin pipe
-			Pipe* m_pstderr;									///< stderr pipe
+			std::unique_ptr<Pipe> m_pstdout;					///< stdout pipe
+			std::unique_ptr<Pipe> m_pstdin;						///< stdin pipe
+			std::unique_ptr<Pipe> m_pstderr;					///< stderr pipe
 			std::filesystem::path m_program;					///< Program path
 			std::vector<std::string> m_arguments;				///< Arguments
 			std::unique_ptr<std::thread> m_forwarder;			///< Forwarder thread
@@ -207,6 +213,11 @@ namespace StormByte::System {
 			 */
 			void ConsumeAndForward(Process& exec);
 
+			/**
+			 * Clears ownership so Wait/destructor are no-ops.
+			 */
+			void ReleaseOwnership() noexcept;
+
 			#ifdef WINDOWS
 			/**
 			 * @return Full command line as wide string.
@@ -217,9 +228,6 @@ namespace StormByte::System {
 
 	/**
 	 * Streams process stdout to an ostream.
-	 * @param ostream Output stream.
-	 * @param proc Process.
-	 * @return @p ostream.
 	 */
 	STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 }

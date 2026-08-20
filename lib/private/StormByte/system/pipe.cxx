@@ -5,6 +5,7 @@ using namespace StormByte::System;
 #ifdef UNIX
 #include <fcntl.h>
 #include <limits.h>
+#include <mutex>
 #include <signal.h>
 #include <unistd.h>
 #else
@@ -14,11 +15,13 @@ SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 
 Pipe::Pipe() {
 	#ifdef UNIX
-	signal(SIGPIPE, SIG_IGN);
+	static std::once_flag sigpipe_once;
+	std::call_once(sigpipe_once, [] {
+		signal(SIGPIPE, SIG_IGN);
+	});
 	#ifdef LINUX
 	(void)pipe2(m_fd, O_CLOEXEC);
 	#else
-	// macOS and other UNIX: pipe(2) does not take O_CLOEXEC
 	(void)pipe(m_fd);
 	fcntl(m_fd[0], F_SETFD, FD_CLOEXEC);
 	fcntl(m_fd[1], F_SETFD, FD_CLOEXEC);
@@ -56,7 +59,7 @@ bool Pipe::WriteEOF() const {
 }
 
 ssize_t Pipe::Read(std::vector<char>& buffer, ssize_t bytes) const {
-	return read(m_fd[0], &buffer[0], bytes);
+	return read(m_fd[0], buffer.data(), static_cast<size_t>(bytes));
 }
 
 bool Pipe::ReadEOF() const {
@@ -85,44 +88,55 @@ HANDLE Pipe::WriteHandle() const {
 }
 
 DWORD Pipe::Write(const std::string& data) {
-	DWORD dwWritten;
+	DWORD dwWritten = 0;
 	WriteFile(m_fd[1], data.c_str(), static_cast<DWORD>(sizeof(char) * data.length()), &dwWritten, NULL);
 	return dwWritten;
 }
 
 DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
-	DWORD dwRead;
+	DWORD dwRead = 0;
 	ReadFile(m_fd[0], buffer.data(), size, &dwRead, NULL);
 	return dwRead;
 }
 #endif
 
-/** This function will write chunks until write HUPs taking ownership    **/
-/** of the provided data to write. Empty parameter is Undefined Behavior **/
 #ifdef UNIX
 bool Pipe::WriteAtomic(std::string&& data) {
+	if (data.empty())
+		return true;
+
 	std::string out = std::move(data);
-	bool can_continue;
+	bool can_continue = true;
 
 	do {
-		size_t chunk_size = (out.length() > PIPE_BUF) ? PIPE_BUF : out.length(), bytes_written = 0;
-		bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
+		const size_t chunk_size = (out.length() > static_cast<size_t>(PIPE_BUF)) ? static_cast<size_t>(PIPE_BUF) : out.length();
+		const ssize_t bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
+		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size) {
+			can_continue = false;
+			break;
+		}
 		out.erase(0, chunk_size);
-		can_continue = (chunk_size == bytes_written) && !WriteEOF();
+		can_continue = !WriteEOF();
 	} while (!out.empty() && can_continue);
 	return out.empty();
 }
 #else
 bool Pipe::WriteAtomic(std::string&& data) {
+	if (data.empty())
+		return true;
+
 	std::string out = std::move(data);
-	bool can_continue;
+	bool can_continue = true;
 
 	do {
-		size_t chunk_size = (out.length() > 4096) ? 4096 : out.length(), bytes_written = 0;
-		DWORD dwWritten;
-		WriteFile(m_fd[1], out.c_str(), static_cast<DWORD>(chunk_size), &dwWritten, NULL);
+		const size_t chunk_size = (out.length() > 4096) ? 4096 : out.length();
+		DWORD dwWritten = 0;
+		if (!WriteFile(m_fd[1], out.c_str(), static_cast<DWORD>(chunk_size), &dwWritten, NULL) ||
+			dwWritten != static_cast<DWORD>(chunk_size)) {
+			can_continue = false;
+			break;
+		}
 		out.erase(0, chunk_size);
-		can_continue = chunk_size == dwWritten;
 	} while (!out.empty() && can_continue);
 	return out.empty();
 }
@@ -148,10 +162,15 @@ std::string& Pipe::operator>>(std::string& out) const {
 	DWORD bytes;
 	#endif
 	std::vector<char> buffer(MAX_READ_BYTES);
-	while((bytes = Read(buffer, MAX_READ_BYTES))) {
-		if (bytes > 0) {
-			out += std::string(&buffer[0], bytes);
-		}
+	while ((bytes = Read(buffer, static_cast<
+#ifdef UNIX
+		ssize_t
+#else
+		DWORD
+#endif
+	>(MAX_READ_BYTES)))) {
+		if (bytes > 0)
+			out.append(buffer.data(), static_cast<size_t>(bytes));
 	}
 	return out;
 }
@@ -160,16 +179,19 @@ std::string& Pipe::operator>>(std::string& out) const {
 void Pipe::Bind(int& src, int dest) noexcept {
 	dup2(src, dest);
 	close(src);
+	src = -1;
 }
 
 void Pipe::Close(int& fd) noexcept {
-	if (fd == -1) return;
+	if (fd == -1)
+		return;
 	close(fd);
 	fd = -1;
 }
 #else
 void Pipe::Close(HANDLE& fd) noexcept {
-	if (fd == INVALID_HANDLE_VALUE) return;
+	if (fd == INVALID_HANDLE_VALUE)
+		return;
 	CloseHandle(fd);
 	fd = INVALID_HANDLE_VALUE;
 }
