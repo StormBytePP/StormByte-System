@@ -177,14 +177,14 @@ int test_stderr_capture() {
 }
 
 int test_exit_code_false() {
-	StormByte::System::Process proc("/bin/false");
+	StormByte::System::Process proc("/usr/bin/false");
 	int exit_code = proc.Wait();
 	ASSERT_TRUE("test_exit_code_false", exit_code != 0);
 	RETURN_TEST("test_exit_code_false", 0);
 }
 
 int test_exit_code_true() {
-	StormByte::System::Process proc("/bin/true");
+	StormByte::System::Process proc("/usr/bin/true");
 	int exit_code = proc.Wait();
 	ASSERT_EQUAL("test_exit_code_true", 0, exit_code);
 	RETURN_TEST("test_exit_code_true", 0);
@@ -247,27 +247,26 @@ int test_basic_execution_windows() {
 }
 
 int test_stdin_roundtrip_windows() {
-	// findstr with empty pattern copies lines; more portable: more.com is interactive.
-	// Use: cmd /c more — can hang. Prefer: powershell is not "always". Use findstr /R "^"
-	std::vector<std::string> args = { "/c", "findstr", "/R", "^" };
-	StormByte::System::Process proc("cmd.exe", args);
+	// sort.exe is in System32 on all supported Windows images
+	StormByte::System::Process proc("sort.exe");
 
-	proc << "alpha\r\n";
-	proc << "beta\r\n";
+	proc << "b\r\n";
+	proc << "a\r\n";
 	proc << StormByte::System::EoF;
 
 	std::string output;
 	proc >> output;
 
-	// Normalize newlines
-	std::string normalized = output;
-	for (char& c : normalized) {
-		if (c == '\r')
-			c = '\n';
+	// Normalize CRLF → LF for comparison
+	std::string normalized;
+	normalized.reserve(output.size());
+	for (size_t i = 0; i < output.size(); ++i) {
+		if (output[i] == '\r')
+			continue;
+		normalized.push_back(output[i]);
 	}
-	// Collapse possible \n\n from \r\n replacement — simple check contains
-	ASSERT_TRUE("test_stdin_roundtrip_windows", normalized.find("alpha") != std::string::npos);
-	ASSERT_TRUE("test_stdin_roundtrip_windows", normalized.find("beta") != std::string::npos);
+
+	ASSERT_EQUAL("test_stdin_roundtrip_windows", "a\nb\n", normalized);
 
 	DWORD exit_code = proc.Wait();
 	ASSERT_EQUAL("test_stdin_roundtrip_windows", 0u, exit_code);
