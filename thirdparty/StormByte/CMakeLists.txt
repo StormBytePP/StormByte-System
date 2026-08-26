@@ -3,10 +3,11 @@ if(WIN32)
 else()
 	set(WITH_STORMBYTE "BUNDLED" CACHE STRING "Use StormByte components (SYSTEM/BUNDLED)")
 endif()
+
 if(WITH_STORMBYTE STREQUAL "SYSTEM")
 	find_package(StormByte REQUIRED)
 else()
 	add_subdirectory(base)
 endif()
 
-target_link_libraries(StormByte-System PUBLIC StormByte)
+buildmaster_link(StormByte-System StormByte)
