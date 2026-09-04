@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte-System.
- *
- * StormByte-System is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
- *
- * StormByte-System is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-System. If not, see
- * <https://www.gnu.org/licenses/lgpl-3.0.html>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte-System.
+*
+* StormByte-System is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License version 3
+* or later, as published by the Free Software Foundation.
+*
+* StormByte-System is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte-System. If not, see
+* <https://www.gnu.org/licenses/lgpl-3.0.html>.
+*/
 
 #pragma once
 
@@ -25,8 +25,7 @@
 #include <filesystem>
 
 /**
- * @namespace System
- * @brief System utilities: processes, pipes, environment variables.
+ * @brief System module of the StormByte suite.
  */
 namespace StormByte::System {
 	/**
@@ -36,39 +35,40 @@ namespace StormByte::System {
 	class STORMBYTE_SYSTEM_PUBLIC Exception: public StormByte::Exception {
 		public:
 			/**
+			 * @brief Construct from a message.
 			 * @param message Error message.
 			 */
 			Exception(const std::string& message);
 
 			/**
-			 * Copy constructor.
+			 * @brief Copy constructor.
 			 */
 			Exception(const Exception&) = default;
 
 			/**
-			 * Move constructor.
+			 * @brief Move constructor.
 			 */
 			Exception(Exception&&) noexcept = default;
 
 			/**
-			 * Copy assignment.
+			 * @brief Copy assignment.
 			 */
 			Exception& operator=(const Exception&) = default;
 
 			/**
-			 * Move assignment.
+			 * @brief Move assignment.
 			 */
 			Exception& operator=(Exception&&) noexcept = default;
 
 			/**
-			 * Destructor.
+			 * @brief Destructor.
 			 */
 			virtual ~Exception() noexcept override = default;
 	};
 
 	/**
 	 * @class FileIOError
-	 * @brief Thrown when a file cannot be opened for read or write.
+	 * @brief A file could not be opened for read or write.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC FileIOError final: public Exception {
 		public:
@@ -82,6 +82,7 @@ namespace StormByte::System {
 			};
 
 			/**
+			 * @brief Operation as text.
 			 * @param op Operation.
 			 * @return "read", "write", or "unknown".
 			 */
@@ -94,70 +95,72 @@ namespace StormByte::System {
 			}
 
 			/**
+			 * @brief Construct from a path and an operation.
 			 * @param file File path.
 			 * @param operation Failed operation.
 			 */
 			FileIOError(const std::filesystem::path& file, const Operation& operation);
 
 			/**
-			 * Copy constructor.
+			 * @brief Copy constructor.
 			 */
 			FileIOError(const FileIOError&) = default;
 
 			/**
-			 * Move constructor.
+			 * @brief Move constructor.
 			 */
 			FileIOError(FileIOError&&) noexcept = default;
 
 			/**
-			 * Copy assignment.
+			 * @brief Copy assignment.
 			 */
 			FileIOError& operator=(const FileIOError&) = default;
 
 			/**
-			 * Move assignment.
+			 * @brief Move assignment.
 			 */
 			FileIOError& operator=(FileIOError&&) = default;
 
 			/**
-			 * Destructor.
+			 * @brief Destructor.
 			 */
 			~FileIOError() noexcept override = default;
 	};
 
 	/**
 	 * @class ExecutableNotFound
-	 * @brief Thrown when a program cannot be executed / was not found.
+	 * @brief A program could not be executed / was not found.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC ExecutableNotFound: public Exception {
 		public:
 			/**
+			 * @brief Construct from an executable path or name.
 			 * @param exec Path or name of the missing executable.
 			 */
 			ExecutableNotFound(const std::filesystem::path& exec);
 
 			/**
-			 * Copy constructor.
+			 * @brief Copy constructor.
 			 */
 			ExecutableNotFound(const ExecutableNotFound&) = default;
 
 			/**
-			 * Move constructor.
+			 * @brief Move constructor.
 			 */
 			ExecutableNotFound(ExecutableNotFound&&) noexcept = default;
 
 			/**
-			 * Copy assignment.
+			 * @brief Copy assignment.
 			 */
 			ExecutableNotFound& operator=(const ExecutableNotFound&) = default;
 
 			/**
-			 * Move assignment.
+			 * @brief Move assignment.
 			 */
 			ExecutableNotFound& operator=(ExecutableNotFound&&) noexcept = default;
 
 			/**
-			 * Destructor.
+			 * @brief Destructor.
 			 */
 			~ExecutableNotFound() noexcept override = default;
 	};
