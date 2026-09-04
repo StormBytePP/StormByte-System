@@ -1,7 +1,25 @@
+/*
+ * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+ *
+ * This file is part of StormByte-System.
+ *
+ * StormByte-System is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License version 3
+ * or later, as published by the Free Software Foundation.
+ *
+ * StormByte-System is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with StormByte-System. If not, see
+ * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ */
+
 #include <StormByte/system/exception.hxx>
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
-
 #ifdef UNIX
 #include <sys/wait.h>
 #include <signal.h>
@@ -11,9 +29,7 @@
 #include <sstream>
 #include <iterator>
 #endif
-
 using namespace StormByte::System;
-
 Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):
 	m_status(Status::RUNNING),
 #ifdef UNIX
@@ -30,7 +46,6 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 #endif
 	Run();
 }
-
 Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 	m_status(Status::RUNNING),
 #ifdef UNIX
@@ -47,7 +62,6 @@ Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 #endif
 	Run();
 }
-
 void Process::ReleaseOwnership() noexcept {
 #ifdef UNIX
 	m_pid = -1;
@@ -61,7 +75,6 @@ void Process::ReleaseOwnership() noexcept {
 	m_pstderr.reset();
 	m_forwarder.reset();
 }
-
 Process::Process(Process&& proc) noexcept:
 	m_status(proc.m_status),
 #ifdef UNIX
@@ -78,7 +91,6 @@ Process::Process(Process&& proc) noexcept:
 	m_forwarder(std::move(proc.m_forwarder)) {
 	proc.ReleaseOwnership();
 }
-
 Process& Process::operator=(Process&& proc) noexcept {
 	if (this != &proc) {
 		Wait();
@@ -99,7 +111,6 @@ Process& Process::operator=(Process&& proc) noexcept {
 	}
 	return *this;
 }
-
 Process::~Process() noexcept {
 	Wait();
 	m_pstdout.reset();
@@ -110,63 +121,51 @@ Process::~Process() noexcept {
 	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
 }
-
 Process& Process::operator>>(Process& exe) {
 	ConsumeAndForward(exe);
 	return exe;
 }
-
 std::string& Process::operator>>(std::string& data) const {
 	if (m_pstdout)
 		*m_pstdout >> data;
 	return data;
 }
-
 std::string& Process::Stderr(std::string& str) const {
 	if (m_pstderr)
 		*m_pstderr >> str;
 	return str;
 }
-
 std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe) {
 	std::string data;
 	if (exe.m_pstdout)
 		*exe.m_pstdout >> data;
 	return os << data;
 }
-
 Process& Process::operator<<(const std::string& data) {
 	if (m_pstdin)
 		*m_pstdin << data;
 	return *this;
 }
-
 void Process::operator<<(const System::_EoF&) {
 	if (m_pstdin)
 		m_pstdin->CloseWrite();
 }
-
 void Process::Run() {
 #ifdef UNIX
 	m_pid = fork();
-
 	if (m_pid == 0) {
 		m_pstdin->CloseWrite();
 		m_pstdin->BindRead(STDIN_FILENO);
-
 		m_pstdout->CloseRead();
 		m_pstdout->BindWrite(STDOUT_FILENO);
-
 		m_pstderr->CloseRead();
 		m_pstderr->BindWrite(STDERR_FILENO);
-
 		std::vector<char*> argv;
 		argv.reserve(m_arguments.size() + 2);
 		argv.push_back(const_cast<char*>(m_program.c_str()));
 		for (size_t i = 0; i < m_arguments.size(); i++)
 			argv.push_back(m_arguments[i].data());
 		argv.push_back(nullptr);
-
 		execvp(m_program.c_str(), argv.data());
 		// Child must not throw across fork boundary
 		_exit(127);
@@ -186,16 +185,13 @@ void Process::Run() {
 	m_siStartInfo.hStdOutput = m_pstdout->WriteHandle();
 	m_siStartInfo.hStdInput = m_pstdin->ReadHandle();
 	m_siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
-
 	m_pstdout->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
 	m_pstderr->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
 	m_pstdin->WriteHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
-
 	std::wstring command = FullCommand();
 	std::vector<wchar_t> cmdline(command.begin(), command.end());
 	cmdline.push_back(L'\0');
 	LPWSTR szCmdline = cmdline.data();
-
 	if (CreateProcessW(NULL,
 			szCmdline,
 			NULL,
@@ -209,7 +205,6 @@ void Process::Run() {
 		m_pstdout->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
 		m_pstderr->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
 		m_pstdin->ReadHandleInformation(HANDLE_FLAG_INHERIT, 0);
-
 		m_pstdout->CloseWrite();
 		m_pstderr->CloseWrite();
 		m_pstdin->CloseRead();
@@ -219,37 +214,30 @@ void Process::Run() {
 	}
 #endif
 }
-
 void Process::Send(const std::string& str) {
 	if (m_pstdin)
 		*m_pstdin << str;
 }
-
 #ifdef UNIX
 int Process::Wait() noexcept {
 	if (m_status == Status::TERMINATED || m_pid <= 0)
 		return -1;
-
 	if (m_forwarder) {
 		m_forwarder->join();
 		m_forwarder.reset();
 	}
-
 	int status = 0;
 	if (waitpid(m_pid, &status, 0) == -1) {
 		m_status = Status::TERMINATED;
 		m_pid = -1;
 		return -1;
 	}
-
 	m_status = Status::TERMINATED;
 	m_pid = -1;
-
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
 	return -1;
 }
-
 pid_t Process::Pid() noexcept {
 	return m_pid;
 }
@@ -257,36 +245,29 @@ pid_t Process::Pid() noexcept {
 DWORD Process::Wait() noexcept {
 	if (m_status == Status::TERMINATED || m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
-
 	if (m_forwarder) {
 		m_forwarder->join();
 		m_forwarder.reset();
 	}
-
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
 		m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
-
 	if (!GetExitCodeProcess(m_piProcInfo.hProcess, &exitCode)) {
 		m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
-
 	CloseHandle(m_piProcInfo.hProcess);
 	CloseHandle(m_piProcInfo.hThread);
 	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
-
 	m_status = Status::TERMINATED;
 	return exitCode;
 }
-
 PROCESS_INFORMATION Process::Pid() {
 	return m_piProcInfo;
 }
 #endif
-
 void Process::Suspend() {
 #ifdef UNIX
 	if (m_pid > 0)
@@ -297,10 +278,8 @@ void Process::Suspend() {
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (hThreadSnap == INVALID_HANDLE_VALUE)
 		return;
-
 	THREADENTRY32 te32;
 	te32.dwSize = sizeof(THREADENTRY32);
-
 	if (Thread32First(hThreadSnap, &te32)) {
 		do {
 			if (te32.th32OwnerProcessID == m_piProcInfo.dwProcessId) {
@@ -316,7 +295,6 @@ void Process::Suspend() {
 #endif
 	m_status = Status::SUSPENDED;
 }
-
 void Process::Resume() {
 #ifdef UNIX
 	if (m_pid > 0)
@@ -327,10 +305,8 @@ void Process::Resume() {
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (hThreadSnap == INVALID_HANDLE_VALUE)
 		return;
-
 	THREADENTRY32 te32;
 	te32.dwSize = sizeof(THREADENTRY32);
-
 	if (Thread32First(hThreadSnap, &te32)) {
 		do {
 			if (te32.th32OwnerProcessID == m_piProcInfo.dwProcessId) {
@@ -346,7 +322,6 @@ void Process::Resume() {
 #endif
 	m_status = Status::RUNNING;
 }
-
 void Process::ConsumeAndForward(Process& exec) {
 	m_forwarder = std::make_unique<std::thread>(
 		[this, &exec] {
@@ -360,7 +335,6 @@ void Process::ConsumeAndForward(Process& exec) {
 					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
 			} while (!m_pstdout->ReadEOF() && chunks_written);
 			exec.m_pstdin->CloseWrite();
-
 			if (!chunks_written) {
 				if (m_pid > 0)
 					kill(m_pid, SIGTERM);
@@ -380,7 +354,6 @@ void Process::ConsumeAndForward(Process& exec) {
 					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), bytes_read));
 				status = WaitForSingleObject(m_piProcInfo.hProcess, 0);
 			} while (chunks_written && status == WAIT_TIMEOUT);
-
 			if (!chunks_written)
 				TerminateProcess(m_piProcInfo.hProcess, 0);
 			exec.m_pstdin->CloseWrite();
@@ -388,7 +361,6 @@ void Process::ConsumeAndForward(Process& exec) {
 		}
 	);
 }
-
 #ifdef WINDOWS
 std::wstring Process::FullCommand() const {
 	std::stringstream ss;
