@@ -11,7 +11,7 @@ StormByte System is the C++26 process and environment layer of the StormByte sui
 
 Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
 
-## [1.0.0] - 2026-09-04
+## [1.0.0] - 2026-09-05
 
 Initial public release of StormByte-System.
 
