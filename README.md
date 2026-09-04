@@ -69,15 +69,17 @@ cmake --install build
 
 ## The rest of the suite
 
-- [Base](https://dev.stormbyte.org/StormByte) — foundation: Expected, exceptions, visibility, helpers
-- [Buffer](https://dev.stormbyte.org/StormByte-Buffer) — FIFO, pipelines, consumers and producers
-- [Config](https://dev.stormbyte.org/StormByte-Config) — typed configuration trees
-- [Crypto](https://dev.stormbyte.org/StormByte-Crypto) — hash, compress, encrypt, sign, key agreement
-- [Database](https://dev.stormbyte.org/StormByte-Database) — one API over SQLite, PostgreSQL and MariaDB
-- [Logger](https://dev.stormbyte.org/StormByte-Logger) — levels, redaction, threaded sinks
-- [Multimedia](https://dev.stormbyte.org/StormByte-Multimedia) — FFmpeg-backed media engine
-- [Network](https://dev.stormbyte.org/StormByte-Network) — inherit Client/Server; framed packets
-- **System** (this repository)
+| Module | Role | API |
+| --- | --- | --- |
+| [Base](https://github.com/StormBytePP/StormByte) | Exceptions, Expected, serialization, strings, UUID, concepts | [/StormByte](https://dev.stormbyte.org/StormByte) |
+| [Buffer](https://github.com/StormBytePP/StormByte-Buffer) | FIFO, SharedFIFO, Ring, Producer/Consumer and multi-stage pipelines | [/StormByte-Buffer](https://dev.stormbyte.org/StormByte-Buffer) |
+| [Config](https://github.com/StormBytePP/StormByte-Config) | Human-readable text and versioned binary documents (groups, lists, raw bytes) | [/StormByte-Config](https://dev.stormbyte.org/StormByte-Config) |
+| [Crypto](https://github.com/StormBytePP/StormByte-Crypto) | Hash, compress, encrypt, sign and key agreement — Crypto++ never leaves the private tree | [/StormByte-Crypto](https://dev.stormbyte.org/StormByte-Crypto) |
+| [Database](https://github.com/StormBytePP/StormByte-Database) | One API over SQLite, PostgreSQL and MariaDB | [/StormByte-Database](https://dev.stormbyte.org/StormByte-Database) |
+| [Logger](https://github.com/StormBytePP/StormByte-Logger) | Stream logger with levels, headers, human-readable sizes and redaction (`ThreadedLog`) | [/StormByte-Logger](https://dev.stormbyte.org/StormByte-Logger) |
+| [Multimedia](https://github.com/StormBytePP/StormByte-Multimedia) | Decode, encode and containers without raw FFmpeg types; codecs enabled only if present | [/StormByte-Multimedia](https://dev.stormbyte.org/StormByte-Multimedia) |
+| [Network](https://github.com/StormBytePP/StormByte-Network) | Framed packets, Client/Server, IPv4/IPv6 TCP and Buffer pipelines (compress/encrypt) | [/StormByte-Network](https://dev.stormbyte.org/StormByte-Network) |
+| **System** | This repository | [/StormByte-System](https://dev.stormbyte.org/StormByte-System) |
 
 ## Public API
 
