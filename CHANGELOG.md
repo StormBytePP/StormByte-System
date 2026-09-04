@@ -5,20 +5,28 @@ All notable changes to **StormByte-System** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-08-20
+## [Summary]
+
+StormByte System is the C++26 process and environment layer of the StormByte suite.
+
+Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
+
+## [1.0.0] - 2026-09-04
+
+Initial public release of StormByte-System.
 
 ### Added
 
 - **Process**: run external programs with piped stdin / stdout / stderr
-  - Move-only ownership; starts on construction
-  - `Wait()` for exit code (blocking, no timeout)
-  - `Suspend()` / `Resume()`
-  - Stream operators: write stdin, read stdout, `<< System::EoF` to close stdin
-  - Process chaining (`p1 >> p2`) via background forwarder
-  - `Stderr()` to read the stderr pipe
-  - Cross-platform (POSIX fork/exec and Windows `CreateProcessW`)
+    - Move-only ownership; starts on construction
+    - `Wait()` for exit code (blocking, no timeout)
+    - `Suspend()` / `Resume()`
+    - Stream operators: write stdin, read stdout, `<< System::EoF` to close stdin
+    - Process chaining (`p1 >> p2`) via background forwarder
+    - `Stderr()` to read the stderr pipe
+    - Cross-platform (POSIX fork/exec and Windows `CreateProcessW`)
 - **Pipe** (internal): anonymous pipes for IPC (UNIX `pipe`/`pipe2`, Windows `CreatePipe`)
-  - Atomic chunked writes, bind/dup helpers, handle inheritance flags on Windows
+    - Atomic chunked writes, bind/dup helpers, handle inheritance flags on Windows
 - **Variable**: expand environment strings (Windows `ExpandEnvironmentStrings`; UNIX `~` → home)
 - **Exceptions**: `Exception`, `FileIOError`, `ExecutableNotFound`
 - Unit tests for Linux, macOS and Windows (pipelines, stdin, exit codes, move)
