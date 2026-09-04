@@ -1,474 +1,149 @@
-# StormByte
-![Linux](https://img.shields.io/badge/Linux-Supported-1793D1?logo=linux&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-Supported-0078D6?logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-Supported-0078D6?logo=apple&logoColor=white)
+# StormByte-System
+
+![Multiplatform](https://img.shields.io/badge/Linux%20%7C%20Windows%20%7C%20macOS-Supported-1793D1)
 ![C++26](https://img.shields.io/badge/C%2B%2B-26-00599C?logo=c%2B%2B&logoColor=white)
-![CMake](https://img.shields.io/badge/CMake-3.12+-064F8C?logo=cmake&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-3.28+-064F8C?logo=cmake&logoColor=white)
 ![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)
-[![CI](https://github.com/StormBytePP/StormByte-System/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-Buffer/actions/workflows/ci.yml)
+[![CI](https://github.com/StormBytePP/StormByte-System/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-System/actions/workflows/ci.yml)
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/StormBytePP)
 
-StormByte is a comprehensive, cross-platform C++ library aimed at easing system programming, configuration management, logging, and database handling tasks. This library provides a unified API that abstracts away the complexities and inconsistencies of different platforms (Windows, Linux).
+StormByte-System is the C++26 system module of the [StormByte](https://dev.stormbyte.org/StormByte) suite.
 
-## Features
-
-- **System Operations**: Handles pipes, processes, and system variables seamlessly across different platforms.
+Spawn processes with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment variables. POSIX and Windows stay behind one API.
 
 ## Table of Contents
 
-- [Repository](#Repository)
-- [Installation](#Installation)
-- [Modules](#Modules)
-	- [Base](https://dev.stormbyte.org/StormByte)
-	- [Buffer](https://dev.stormbyte.org/StormByte-Buffer)
-	- [Config](https://dev.stormbyte.org/StormByte-Config)
-	- [Crypto](https://dev.stormbyte.org/StormByte-Crypto)
-	- [Database](https://dev.stormbyte.org/StormByte-Database)
-	- [Logger](https://dev.stormbyte.org/StormByte-Logger)
-	- [Multimedia](https://dev.stormbyte.org/StormByte-Multimedia)
-	- [Network](https://dev.stormbyte.org/StormByte-Network)
-	- **System**
-- [Contributing](#Contributing)
-- [License](#License)
+- [Repository](#repository)
+- [Installation](#installation)
+- [Why StormByte-System](#why-stormbyte-system)
+- [Features](#features)
+- [Dependencies](#dependencies)
+- [The rest of the suite](#the-rest-of-the-suite)
+- [Public API](#public-api)
+- [Examples](#examples)
+	- [Run a process](#run-a-process)
+	- [Pipe two processes](#pipe-two-processes)
+	- [Expand variables](#expand-variables)
+- [Design notes](#design-notes)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Repository
 
-You can visit the code repository at [GitHub](https://github.com/StormBytePP/StormByte-System)
+- [StormByte-System](https://github.com/StormBytePP/StormByte-System)
 
 ## Installation
 
-### Prerequisites
-
-Ensure you have the following installed:
-
-- C++26 compatible compiler
-- CMake 3.12 or higher
-
-### Building
-
-To build the library, follow these steps:
-
-```sh
+```bash
 git clone https://github.com/StormBytePP/StormByte-System.git
 cd StormByte-System
-mkdir build
-cd build
-cmake ..
-make
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+cmake --install build
 ```
 
-## Modules
+## Why StormByte-System
 
-### System
+| Goal | How it is achieved |
+|------|--------------------|
+| **One process API** | `Process` starts on construct; pipes are private. |
+| **Shell-like chaining** | `p1 >> p2` forwards stdout to stdin on a worker thread. |
+| **stdin control** | `<<` writes; `<< System::EoF` closes the write end. |
+| **Environment paths** | `Variable::Expand` (`%VAR%` on Windows, `~` on UNIX). |
 
-The `System` module provides a set of classes and functions to handle system-level operations like pipes, processes, and system variables.
+## Features
 
-#### Example: Process
+- Move-only `Process` (fork/exec or CreateProcess)
+- Piped stdin, stdout, stderr
+- `Wait`, `Pid`, `Suspend`, `Resume`
+- Process chaining
+- `FileIOError`, `ExecutableNotFound`
+- Private `Pipe` (pipe2 / CreatePipe)
 
-Include the necessary headers in your project and link against the `StormByte` library:
+## Dependencies
+
+| Dependency | Role |
+|------------|------|
+| StormByte (base) | Exceptions, visibility |
+
+## The rest of the suite
+
+- [Base](https://dev.stormbyte.org/StormByte) — foundation: Expected, exceptions, visibility, helpers
+- [Buffer](https://dev.stormbyte.org/StormByte-Buffer) — FIFO, pipelines, consumers and producers
+- [Config](https://dev.stormbyte.org/StormByte-Config) — typed configuration trees
+- [Crypto](https://dev.stormbyte.org/StormByte-Crypto) — hash, compress, encrypt, sign, key agreement
+- [Database](https://dev.stormbyte.org/StormByte-Database) — one API over SQLite, PostgreSQL and MariaDB
+- [Logger](https://dev.stormbyte.org/StormByte-Logger) — levels, redaction, threaded sinks
+- [Multimedia](https://dev.stormbyte.org/StormByte-Multimedia) — FFmpeg-backed media engine
+- [Network](https://dev.stormbyte.org/StormByte-Network) — inherit Client/Server; framed packets
+- **System** (this repository)
+
+## Public API
+
+| Type | Role |
+|------|------|
+| `Process` | Spawn and talk to a child |
+| `Variable` | Expand environment strings |
+| `Exception` / `FileIOError` / `ExecutableNotFound` | Errors |
+| `System::EoF` | Close process stdin |
+
+`Pipe` is private.
+
+## Examples
+
+### Run a process
 
 ```cpp
 #include <StormByte/system/process.hxx>
-#include <iostream>
 
-using namespace StormByte::System;
-
-// Example usage
-int main() {
-	std::vector<std::string> args = {"-l", "-a"};
-	Process ls("/bin/ls", args);
-	Process grep("/bin/grep", {"main.cpp"});
-	ls >> grep;
-	grep.wait();
-	std::string output;
-	grep >> output;
-	std::cout << output << std::endl;
-	return 0;
-}
+StormByte::System::Process echo("/bin/echo", {"hello"});
+std::string out;
+echo >> out;
+echo.Wait();
 ```
 
-#### Example: Variable
+### Pipe two processes
+
+```cpp
+StormByte::System::Process producer("/bin/echo", {"hello"});
+StormByte::System::Process consumer("/usr/bin/tr", {"a-z", "A-Z"});
+producer >> consumer;
+producer << StormByte::System::EoF;
+std::string out;
+consumer >> out;
+```
+
+On Windows use `C:\\Windows\\System32\\cmd.exe` (or the real binary path) instead of `/bin/echo`.
+
+### Expand variables
 
 ```cpp
 #include <StormByte/system/variable.hxx>
-#include <iostream>
 
-// Example usage
-int main() {
-	std::string path = StormByte::System::Variable::Expand("~");
-	std::cout << "Home path: " << path << std::endl;
-	return 0;
-}
+auto home = StormByte::System::Variable::Expand("~");
+#ifdef WINDOWS
+auto tmp = StormByte::System::Variable::Expand("%TEMP%");
+#endif
 ```
 
-Thank you for the correction! Let's update the example to access comments through their position or using an iterator.
+## Design notes
 
-### Config
+- Construction starts the child immediately.
+- `Wait()` has no timeout.
+- Destructor waits if the process is still owned.
+- Move invalidates the source (PID / handles cleared).
 
-#### Overview
+## Testing
 
-The `Config` module of StormByte provides a flexible and human-readable way to manage configuration files. It supports initialization from any `std::istream`, setting pre and post read hooks using `std::function`, handling different data types (string, int, double, single and multiline comments, and containers such as lists and groups), and managing operation modes when items already exist before addition.
-
-#### Initialization from `std::istream`
-
-You can initialize the configuration from any `std::istream`, including `std::fstream`, `std::cin`, or even another `Config` object.
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <fstream>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    // Initialize from std::fstream
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    // Initialize from std::cin
-    Config config2;
-    std::cin >> config2;
-
-    // Initialize from another Config object
-    Config config3;
-    config2 >> config3;
-
-    return 0;
-}
-```
-
-#### Hooks: Pre and Post Read
-
-You can set pre and post read hooks using `std::function`. These hooks allow you to perform actions before and after reading the configuration, with the `Config` object passed as a reference argument.
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-#include <functional>
-
-using namespace StormByte::Config;
-
-void pre_read_hook(Config& config) {
-    std::cout << "Pre-read hook executed. Current config has " << config.Size() << " items." << std::endl;
-}
-
-void post_read_hook(Config& config) {
-    std::cout << "Post-read hook executed. Current config has " << config.Size() << " items." << std::endl;
-}
-
-int main() {
-    Config config;
-    config.SetPreReadHook(pre_read_hook);
-    config.SetPostReadHook(post_read_hook);
-
-    // Read configuration (hooks will be called accordingly)
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    return 0;
-}
-```
-
-#### Operation Modes for Existing Items
-
-You can set the operation mode when an item already exists before adding a new one. Operation modes can include replace, ignore, or throw an exception (the default).
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-
-    // Set operation mode to replace existing items
-    config.SetOperationMode(Config::OperationMode::Replace);
-
-    // Read configuration
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    return 0;
-}
-```
-
-#### Data Types
-
-The configuration supports various data types, including strings, integers, doubles, comments (single and multiline), and containers (lists and groups).
-
-##### Strings
-
-```plaintext
-username = "example_user"
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    const Item& username = config["username"];
-    std::cout << "Username: " << username.Value<std::string>() << std::endl;
-
-    return 0;
-}
-```
-
-##### Integers
-
-```plaintext
-timeout = 30
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    const Item& timeout = config["timeout"];
-    std::cout << "Timeout: " << timeout.Value<int>() << std::endl;
-
-    return 0;
-}
-```
-
-##### Doubles
-
-```plaintext
-feature_timeout = 60.5
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    const Item& feature_timeout = config["feature_timeout"];
-    std::cout << "Feature Timeout: " << feature_timeout.Value<double>() << std::endl;
-
-    return 0;
-}
-```
-
-##### Comments
-
-Single-line comments start with `#`, and multiline comments are enclosed between `/*` and `*/`.
-
-```plaintext
-# This is a single-line comment
-/**
- * This is a multiline comment
- */
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    // Retrieve comments using position
-    for (std::size_t i = 0; i < config.Size(); ++i) {
-        const Item& item = config[i];
-        if (item.Type() == Item::Type::Comment) {
-            std::cout << "Comment: " << item.Value<Comment>() << std::endl;
-        }
-    }
-
-    return 0;
-}
-```
-
-##### Containers: Lists
-
-Lists are sequences of values enclosed in square brackets `[]` separated by spaces and can contain any other item (including nested lists and groups).
-
-```plaintext
-favorite_numbers = [3 14 42 "pi constant"]
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    const List& favorite_numbers = config["favorite_numbers"].Value<List>();
-    std::cout << "Favorite Numbers: ";
-    for (const auto& number : favorite_numbers) {
-	if (number.GetType() == Item::Type::Integer)
-            std::cout << number.Value<int>() << " ";
-        else
-            std::cout << number.Value<std::string> << number;
-    }
-    std::cout << std::endl;
-
-    return 0;
-}
-```
-
-##### Containers: Groups
-
-Groups are nested configurations that can contain other key-value pairs, groups, or lists.
-
-```plaintext
-settings = {
-    username = "example_user"
-    timeout = 30
-}
-```
-
-##### Example
-
-```cpp
-#include <StormByte/config/config.hxx>
-#include <iostream>
-
-using namespace StormByte::Config;
-
-int main() {
-    Config config;
-    std::ifstream file("config.cfg");
-    file >> config;
-    file.close();
-
-    const Item& username = config["settings/username"];
-    const Item& timeout = config["settings/timeout"];
-    
-    std::cout << "Username: " << username.Value<std::string>() << std::endl;
-    std::cout << "Timeout: " << timeout.Value<int>() << std::endl;
-
-    return 0;
-}
-```
-
-This expanded section covers all requested features for the configuration file management in your library, with the correct handling and retrieval of comments. If there's anything specific you'd like to adjust or add, let me know!
-
-### Log
-
-The `Log` module provides a comprehensive logging framework with support for different logging levels and outputs.
-
-#### Example: Log
-
-```cpp
-#include <StormByte/log/logger.hxx>
-#include <iostream>
-
-using namespace StormByte::Log;
-
-// Example usage
-int main() {
-	// Simple logger outputing only errors to stdout
-	Logger logger(std::cout, StormByte::Log::Level::Error);
-	logger << Level::Info << "This is an info message"; // Will not be displayed
-	logger << Level::Error << "This is an error message"; // Will be displayed
-	return 0;
-}
-```
-
-### Database
-
-The `Database` module provides support for SQLite, an embedded SQL database engine. It includes classes for managing database connections, prepared statements, and result rows.
-
-#### Example: Database
-
-```cpp
-#include <StormByte/database/sqlite/sqlite3.hxx>
-#include <memory>
-#include <iostream>
-
-class MyDatabase : public StormByte::Database::SQLite::SQLite3 {
-public:
-	MyDatabase(const std::filesystem::path& dbfile) : SQLite3(dbfile) {
-		init_database();
-	}
-
-	void print_all_users() {
-		auto stmt = prepare_select_all_users();
-		while (auto row = stmt->Step()) {
-			std::cout << "ID: " << row->At(0)->Value<int>() << " Name: " << row->At(1)->Value<std::string>() << std::endl;
-		}
-	}
-
-protected:
-	void post_init_action() noexcept override {
-		try {
-			silent_query("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
-		} catch (const StormByte::Database::SQLite::Exception& e) {
-			std::cerr << "Database initialization error: " << e.what() << std::endl;
-		}
-	}
-
-	std::shared_ptr<StormByte::Database::SQLite::PreparedSTMT> prepare_select_all_users() {
-		return prepare_sentence("select_all_users", "SELECT * FROM users");
-	}
-};
-
-// Example usage
-int main() {
-	MyDatabase db("/path/to/database.db");
-	db.print_all_users();
-	return 0;
-}
-```
+Enable tests in CMake (`ENABLE_TEST`) and run CTest from the build tree.
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit pull requests for any enhancements or bug fixes.
+Issues on GitHub. No wiki, no discussions.
 
 ## License
 
-This project is licensed under LGPL v3 License - see the [LICENSE](LICENSE) file for details.
+GNU Lesser General Public License v3 or later.
+
+See [https://www.gnu.org/licenses/lgpl-3.0.html](https://www.gnu.org/licenses/lgpl-3.0.html).
