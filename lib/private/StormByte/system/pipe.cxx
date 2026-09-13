@@ -69,7 +69,7 @@ Pipe::Pipe():
 			}
 			close(fd);
 			fd = duplicate;
-		}
+	}
 	}
 	if (result == -1) {
 		const int error = errno;
@@ -320,21 +320,16 @@ while (true) {
 		if (bytes > 0)
 			out.append(buffer.data(), static_cast<size_t>(bytes));
 		else if (bytes == 0) {
-#ifdef UNIX
-			if (errno == EINTR)
-				continue;
-#else
+#ifndef UNIX
 			if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
 				throw ProcessCreationError("ReadFile failed with error " + std::to_string(GetLastError()));
 #endif
 			break;
 		}
-		else {
 #ifdef UNIX
-			if (errno != EINTR)
+		else if (errno != EINTR)
 				throw ProcessCreationError(std::strerror(errno));
 #endif
-		}
 	}
 	return out;
 }

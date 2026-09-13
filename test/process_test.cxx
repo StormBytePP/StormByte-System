@@ -24,14 +24,17 @@
 #include <algorithm>
 #ifdef UNIX
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 #endif
 #include <chrono>
 #include <cctype>
+#include <csignal>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 namespace {
@@ -251,6 +254,29 @@ int test_signaled_process() {
 	ASSERT_EQUAL("test_signaled_process", -1, proc.Wait());
 	RETURN_TEST("test_signaled_process", 0);
 }
+volatile sig_atomic_t wait_interrupt_signal = 0;
+void wait_interrupt_handler(int) {
+	wait_interrupt_signal = 1;
+}
+int test_wait_interrupted_by_signal() {
+	struct sigaction action{};
+	action.sa_handler = wait_interrupt_handler;
+	sigemptyset(&action.sa_mask);
+	struct sigaction previous{};
+	sigaction(SIGUSR1, &action, &previous);
+	const pthread_t main_thread = pthread_self();
+	StormByte::System::Process proc("/bin/sleep", { "1" });
+	std::thread interrupter([main_thread] {
+		std::this_thread::sleep_for(std::chrono::milliseconds(25));
+		pthread_kill(main_thread, SIGUSR1);
+	});
+	const int exit_code = proc.Wait();
+	interrupter.join();
+	sigaction(SIGUSR1, &previous, nullptr);
+	ASSERT_EQUAL("test_wait_interrupted_by_signal", 1, wait_interrupt_signal);
+	ASSERT_EQUAL("test_wait_interrupted_by_signal", 0, exit_code);
+	RETURN_TEST("test_wait_interrupted_by_signal", 0);
+}
 int test_standard_descriptor_reuse() {
 	const int saved_stdin = dup(STDIN_FILENO);
 	const int saved_stdout = dup(STDOUT_FILENO);
@@ -419,6 +445,7 @@ int main() {
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
 	result += test_signaled_process();
+	result += test_wait_interrupted_by_signal();
 	result += test_standard_descriptor_reuse();
 	result += test_move_process();
 	result += test_move_assignment();
