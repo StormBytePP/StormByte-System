@@ -37,7 +37,9 @@ using namespace StormByte::System;
 Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
+	#ifdef UNIX
 	m_implementation->m_pid = -1;
+	#endif
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
@@ -52,7 +54,9 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
+	#ifdef UNIX
 	m_implementation->m_pid = -1;
+	#endif
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
