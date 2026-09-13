@@ -124,6 +124,10 @@ Process::~Process() noexcept {
 #endif
 }
 Process& Process::operator>>(Process& exe) {
+	if (m_forwarder && m_forwarder->joinable()) {
+		m_forwarder->join();
+		m_forwarder.reset();
+	}
 	#ifdef UNIX
 	const pid_t source_pid = m_pid;
 	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, [source_pid] {
