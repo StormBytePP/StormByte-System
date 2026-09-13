@@ -19,10 +19,12 @@
 
 #include <StormByte/system/exception.hxx>
 #include <StormByte/system/process.hxx>
+#include <StormByte/system/variable.hxx>
 #include <StormByte/test_handlers.h>
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -198,6 +200,13 @@ int test_missing_executable() {
 	ASSERT_THROWS("test_missing_executable", StormByte::System::Process("/no/such/stormbyte-executable"), StormByte::System::ExecutableNotFound);
 	RETURN_TEST("test_missing_executable", 0);
 }
+int test_variable_expansion() {
+	ASSERT_EQUAL("test_variable_expansion", "foo~bar", StormByte::System::Variable::Expand("foo~bar"));
+	const char* home = std::getenv("HOME");
+	if (home != nullptr && *home != '\0')
+		ASSERT_EQUAL("test_variable_expansion", std::string(home) + "/a", StormByte::System::Variable::Expand("~/a"));
+	RETURN_TEST("test_variable_expansion", 0);
+}
 int test_wait_timeout() {
 	StormByte::System::Process proc("/bin/sleep", { "1" });
 	const int timeout_result = proc.Wait(std::chrono::milliseconds(10));
@@ -330,6 +339,7 @@ int main() {
 	result += test_exit_code_false();
 	result += test_exit_code_true();
 	result += test_missing_executable();
+	result += test_variable_expansion();
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
 	result += test_move_process();

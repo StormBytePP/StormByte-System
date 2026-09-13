@@ -18,14 +18,15 @@
  */
 
 #include <StormByte/system/variable.hxx>
+#include <StormByte/system/exception.hxx>
 #include <StormByte/string.hxx>
+#include <vector>
 #ifdef WINDOWS
 #include <windows.h>
 #include <tchar.h>
-#define INFO_BUFFER_SIZE 32767
 #else
 #include <pwd.h>
-#include <regex>
+#include <cstdlib>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
@@ -42,18 +43,34 @@ std::string Variable::ExpandEnvironmentVariable(const std::string& var) {
 	#ifdef WINDOWS
 	return ExpandEnvironmentVariable(String::UTF8Decode(var));
 	#else
-	return std::regex_replace(var, std::regex("~"), HomePath().string());
+	if (var != "~" && (var.size() < 2 || var[0] != '~' || var[1] != '/'))
+		return var;
+	const std::filesystem::path home = HomePath();
+	if (home.empty())
+		return var;
+	return home.string() + (var.size() == 1 ? std::string() : var.substr(1));
 	#endif
 }
 #ifdef WINDOWS
 std::string Variable::ExpandEnvironmentVariable(const std::wstring& var) {
-	wchar_t infoBuf[INFO_BUFFER_SIZE] = { L'\0' };
-	::ExpandEnvironmentStringsW(var.c_str(), infoBuf, INFO_BUFFER_SIZE);
-	return String::UTF8Encode(std::wstring(infoBuf));
+	DWORD size = ::ExpandEnvironmentStringsW(var.c_str(), nullptr, 0);
+	if (size == 0)
+		throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
+	std::vector<wchar_t> buffer(size);
+	while (true) {
+		const DWORD result = ::ExpandEnvironmentStringsW(var.c_str(), buffer.data(), static_cast<DWORD>(buffer.size()));
+		if (result == 0)
+			throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
+		if (result <= buffer.size())
+			return String::UTF8Encode(std::wstring(buffer.data(), result - 1));
+		buffer.resize(result);
+	}
 }
 #else
 std::filesystem::path Variable::HomePath() {
+	if (const char* home = std::getenv("HOME"); home != nullptr && *home != '\0')
+		return home;
 	const struct passwd *pw = getpwuid(getuid());
-	return pw->pw_dir;
+	return pw == nullptr || pw->pw_dir == nullptr ? std::filesystem::path() : std::filesystem::path(pw->pw_dir);
 }
 #endif
