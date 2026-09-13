@@ -85,13 +85,13 @@ namespace StormByte::System {
 			 * @brief Dup2 read end onto @p fd.
 			 * @param fd Destination file descriptor.
 			 */
-			void BindRead(int fd) noexcept;
+			bool BindRead(int fd) noexcept;
 
 			/**
 			 * @brief Dup2 write end onto @p fd.
 			 * @param fd Destination file descriptor.
 			 */
-			void BindWrite(int fd) noexcept;
+			bool BindWrite(int fd) noexcept;
 
 			/**
 			 * @brief Write a string to the write end.
@@ -215,7 +215,7 @@ namespace StormByte::System {
 			 * @param src Source fd (set to -1).
 			 * @param dst Destination fd.
 			 */
-			void Bind(int& src, int dst) noexcept;
+			bool Bind(int& src, int dst) noexcept;
 
 			/**
 			 * @brief Close @p fd if open.

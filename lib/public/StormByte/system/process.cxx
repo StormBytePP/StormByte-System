@@ -165,11 +165,14 @@ void Process::Run() {
 	m_pid = fork();
 	if (m_pid == 0) {
 		m_pstdin->CloseWrite();
-		m_pstdin->BindRead(STDIN_FILENO);
+		if (!m_pstdin->BindRead(STDIN_FILENO))
+			_exit(127);
 		m_pstdout->CloseRead();
-		m_pstdout->BindWrite(STDOUT_FILENO);
+		if (!m_pstdout->BindWrite(STDOUT_FILENO))
+			_exit(127);
 		m_pstderr->CloseRead();
-		m_pstderr->BindWrite(STDERR_FILENO);
+		if (!m_pstderr->BindWrite(STDERR_FILENO))
+			_exit(127);
 		std::vector<char*> argv;
 		argv.reserve(m_arguments.size() + 2);
 		argv.push_back(const_cast<char*>(m_program.c_str()));

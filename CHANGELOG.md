@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Pipe construction now checks platform errors and moved pipes invalidate their source endpoints.
+- Pipe reads, writes, polling and descriptor binding now distinguish interruption, EOF and failure.
 
 ## [Summary]
 

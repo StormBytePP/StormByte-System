@@ -99,11 +99,11 @@ Pipe::~Pipe() noexcept {
 	CloseWrite();
 }
 #ifdef UNIX
-void Pipe::BindRead(int dest) noexcept {
-	Bind(m_fd[0], dest);
+bool Pipe::BindRead(int dest) noexcept {
+	return Bind(m_fd[0], dest);
 }
-void Pipe::BindWrite(int dest) noexcept {
-	Bind(m_fd[1], dest);
+bool Pipe::BindWrite(int dest) noexcept {
+	return Bind(m_fd[1], dest);
 }
 ssize_t Pipe::Write(const std::string& data) {
 	return write(m_fd[1], data.c_str(), sizeof(char) * data.length());
@@ -112,7 +112,12 @@ bool Pipe::WriteEOF() const {
 	pollfd poll_data;
 	poll_data.fd = m_fd[1];
 	poll_data.events = POLLOUT;
-	poll(&poll_data, 1, -1);
+	int result;
+	do {
+		result = poll(&poll_data, 1, -1);
+	} while (result == -1 && errno == EINTR);
+	if (result == -1 || result == 0)
+		return false;
 	return !((poll_data.revents & POLLOUT) == POLLOUT) || ((poll_data.revents & POLLERR) == POLLERR);
 }
 ssize_t Pipe::Read(std::vector<char>& buffer, ssize_t bytes) const {
@@ -122,7 +127,12 @@ bool Pipe::ReadEOF() const {
 	pollfd poll_data;
 	poll_data.fd = m_fd[0];
 	poll_data.events = POLLIN;
-	poll(&poll_data, 1, -1);
+	int result;
+	do {
+		result = poll(&poll_data, 1, -1);
+	} while (result == -1 && errno == EINTR);
+	if (result == -1 || result == 0)
+		return false;
 	return ((poll_data.revents & POLLHUP) == POLLHUP) || ((poll_data.revents & POLLERR) == POLLERR);
 }
 #else
@@ -140,11 +150,13 @@ HANDLE Pipe::WriteHandle() const {
 }
 DWORD Pipe::Write(const std::string& data) {
 	DWORD dwWritten = 0;
+	SetLastError(ERROR_SUCCESS);
 	WriteFile(m_fd[1], data.c_str(), static_cast<DWORD>(sizeof(char) * data.length()), &dwWritten, NULL);
 	return dwWritten;
 }
 DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 	DWORD dwRead = 0;
+	SetLastError(ERROR_SUCCESS);
 	ReadFile(m_fd[0], buffer.data(), size, &dwRead, NULL);
 	return dwRead;
 }
@@ -154,17 +166,16 @@ bool Pipe::WriteAtomic(std::string&& data) {
 	if (data.empty())
 		return true;
 	std::string out = std::move(data);
-	bool can_continue = true;
 	do {
 		const size_t chunk_size = (out.length() > static_cast<size_t>(PIPE_BUF)) ? static_cast<size_t>(PIPE_BUF) : out.length();
 		const ssize_t bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
+		if (bytes_written < 0 && errno == EINTR)
+			continue;
 		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size) {
-			can_continue = false;
-			break;
+			return false;
 		}
 		out.erase(0, chunk_size);
-		can_continue = !WriteEOF();
-	} while (!out.empty() && can_continue);
+	} while (!out.empty());
 	return out.empty();
 }
 #else
@@ -172,17 +183,16 @@ bool Pipe::WriteAtomic(std::string&& data) {
 	if (data.empty())
 		return true;
 	std::string out = std::move(data);
-	bool can_continue = true;
 	do {
 		const size_t chunk_size = (out.length() > 4096) ? 4096 : out.length();
 		DWORD dwWritten = 0;
+		SetLastError(ERROR_SUCCESS);
 		if (!WriteFile(m_fd[1], out.c_str(), static_cast<DWORD>(chunk_size), &dwWritten, NULL) ||
 			dwWritten != static_cast<DWORD>(chunk_size)) {
-			can_continue = false;
-			break;
+			return false;
 		}
 		out.erase(0, chunk_size);
-	} while (!out.empty() && can_continue);
+	} while (!out.empty());
 	return out.empty();
 }
 #endif
@@ -202,16 +212,30 @@ std::thread Pipe::Connect(Pipe& destination, std::function<void()> on_failure) {
 		std::vector<char> buffer(MAX_READ_BYTES);
 		ssize_t bytes_read;
 		bool forwarding = true;
-		while (forwarding && (bytes_read = Read(buffer, MAX_READ_BYTES)) > 0)
-			forwarding = destination.WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
+		while (forwarding) {
+			bytes_read = Read(buffer, MAX_READ_BYTES);
+			if (bytes_read > 0)
+				forwarding = destination.WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
+			else if (bytes_read == 0)
+				break;
+			else if (errno != EINTR)
+				forwarding = false;
+		}
 		if (!forwarding && on_failure)
 			on_failure();
 #else
 		std::vector<CHAR> buffer(MAX_READ_BYTES);
 		DWORD bytes_read;
 		bool forwarding = true;
-		while (forwarding && (bytes_read = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES))) > 0)
-			forwarding = destination.WriteAtomic(std::string(buffer.data(), bytes_read));
+		while (forwarding) {
+			bytes_read = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
+			if (bytes_read > 0)
+				forwarding = destination.WriteAtomic(std::string(buffer.data(), bytes_read));
+			else if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
+				forwarding = false;
+			else
+				break;
+		}
 		if (!forwarding && on_failure)
 			on_failure();
 #endif
@@ -225,23 +249,43 @@ std::string& Pipe::operator>>(std::string& out) const {
 	DWORD bytes;
 	#endif
 	std::vector<char> buffer(MAX_READ_BYTES);
-	while ((bytes = Read(buffer, static_cast<
+while (true) {
+		bytes = Read(buffer, static_cast<
 #ifdef UNIX
 		ssize_t
 #else
 		DWORD
 #endif
-	>(MAX_READ_BYTES)))) {
+	>(MAX_READ_BYTES));
 		if (bytes > 0)
 			out.append(buffer.data(), static_cast<size_t>(bytes));
+		else if (bytes == 0) {
+#ifdef UNIX
+			if (errno == EINTR)
+				continue;
+#else
+			if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
+				throw ProcessCreationError("ReadFile failed with error " + std::to_string(GetLastError()));
+#endif
+			break;
+		}
+		else {
+#ifdef UNIX
+			if (errno != EINTR)
+				throw ProcessCreationError(std::strerror(errno));
+#endif
+		}
 	}
 	return out;
 }
 #ifdef UNIX
-void Pipe::Bind(int& src, int dest) noexcept {
-	dup2(src, dest);
+
+bool Pipe::Bind(int& src, int dest) noexcept {
+	if (dup2(src, dest) == -1)
+		return false;
 	close(src);
 	src = -1;
+	return true;
 }
 void Pipe::Close(int& fd) noexcept {
 	if (fd == -1)
