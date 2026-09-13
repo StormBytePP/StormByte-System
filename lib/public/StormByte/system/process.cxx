@@ -18,6 +18,7 @@
  */
 
 #include <StormByte/system/exception.hxx>
+#include <StormByte/system/process/implementation.hxx>
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
 #ifdef UNIX
@@ -34,115 +35,90 @@
 #endif
 using namespace StormByte::System;
 Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):
-	m_status(Status::RUNNING),
-#ifdef UNIX
-	m_pid(-1),
-#endif
-	m_pstdout(std::make_shared<Pipe>()),
-	m_pstdin(std::make_shared<Pipe>()),
-	m_pstderr(std::make_shared<Pipe>()),
-	m_program(prog),
-	m_arguments(args) {
+	m_implementation(std::make_unique<ProcessImplementation>()) {
+	m_implementation->m_status = Status::RUNNING;
+	m_implementation->m_pid = -1;
+	m_implementation->m_pstdout = std::make_shared<Pipe>();
+	m_implementation->m_pstdin = std::make_shared<Pipe>();
+	m_implementation->m_pstderr = std::make_shared<Pipe>();
+	m_implementation->m_program = prog;
+	m_implementation->m_arguments = args;
 #ifdef WINDOWS
-	ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
 	Run();
 }
 Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
-	m_status(Status::RUNNING),
-#ifdef UNIX
-	m_pid(-1),
-#endif
-	m_pstdout(std::make_shared<Pipe>()),
-	m_pstdin(std::make_shared<Pipe>()),
-	m_pstderr(std::make_shared<Pipe>()),
-	m_program(std::move(prog)),
-	m_arguments(std::move(args)) {
+	m_implementation(std::make_unique<ProcessImplementation>()) {
+	m_implementation->m_status = Status::RUNNING;
+	m_implementation->m_pid = -1;
+	m_implementation->m_pstdout = std::make_shared<Pipe>();
+	m_implementation->m_pstdin = std::make_shared<Pipe>();
+	m_implementation->m_pstderr = std::make_shared<Pipe>();
+	m_implementation->m_program = std::move(prog);
+	m_implementation->m_arguments = std::move(args);
 #ifdef WINDOWS
-	ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
 	Run();
 }
 void Process::ReleaseOwnership() noexcept {
+	if (!m_implementation)
+		return;
 #ifdef UNIX
-	m_pid = -1;
+	m_implementation->m_pid = -1;
 #else
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
-	ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
 #endif
-	m_status = Status::TERMINATED;
-	m_pstdout.reset();
-	m_pstdin.reset();
-	m_pstderr.reset();
-	m_forwarder.reset();
+	m_implementation->m_status = Status::TERMINATED;
+	m_implementation->m_pstdout.reset();
+	m_implementation->m_pstdin.reset();
+	m_implementation->m_pstderr.reset();
+	m_implementation->m_forwarder.reset();
 }
 Process::Process(Process&& proc) noexcept:
-	m_status(proc.m_status),
-#ifdef UNIX
-	m_pid(proc.m_pid),
-#else
-	m_siStartInfo(proc.m_siStartInfo),
-	m_piProcInfo(proc.m_piProcInfo),
-#endif
-	m_pstdout(std::move(proc.m_pstdout)),
-	m_pstdin(std::move(proc.m_pstdin)),
-	m_pstderr(std::move(proc.m_pstderr)),
-	m_program(std::move(proc.m_program)),
-	m_arguments(std::move(proc.m_arguments)),
-	m_forwarder(std::move(proc.m_forwarder)),
-	m_forwarder_cancel(std::move(proc.m_forwarder_cancel)) {
-	proc.ReleaseOwnership();
-}
+	m_implementation(std::move(proc.m_implementation)) {}
 Process& Process::operator=(Process&& proc) noexcept {
 	if (this != &proc) {
 		Wait();
-		m_status = proc.m_status;
-#ifdef UNIX
-		m_pid = proc.m_pid;
-#else
-		m_siStartInfo = proc.m_siStartInfo;
-		m_piProcInfo = proc.m_piProcInfo;
-#endif
-		m_pstdout = std::move(proc.m_pstdout);
-		m_pstdin = std::move(proc.m_pstdin);
-		m_pstderr = std::move(proc.m_pstderr);
-		m_program = std::move(proc.m_program);
-		m_arguments = std::move(proc.m_arguments);
-		m_forwarder = std::move(proc.m_forwarder);
-		m_forwarder_cancel = std::move(proc.m_forwarder_cancel);
-		proc.ReleaseOwnership();
+		m_implementation = std::move(proc.m_implementation);
 	}
 	return *this;
 }
 Process::~Process() noexcept {
 	Wait();
-	m_pstdout.reset();
-	m_pstdin.reset();
-	m_pstderr.reset();
+	if (!m_implementation)
+		return;
+	m_implementation->m_pstdout.reset();
+	m_implementation->m_pstdin.reset();
+	m_implementation->m_pstderr.reset();
 #ifdef WINDOWS
-	ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
 }
 Process& Process::operator>>(Process& exe) {
-	if (m_forwarder && m_forwarder->joinable()) {
-		m_forwarder_cancel->store(true);
-		m_pstdout->CloseRead();
-		m_forwarder->join();
-		m_forwarder.reset();
+	if (!m_implementation || !exe.m_implementation)
+		return exe;
+	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable()) {
+		m_implementation->m_forwarder_cancel->store(true);
+		m_implementation->m_pstdout->CloseRead();
+		m_implementation->m_forwarder->join();
+		m_implementation->m_forwarder.reset();
 	}
-	m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
+	m_implementation->m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
 	#ifdef UNIX
-	const pid_t source_pid = m_pid;
-	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, m_forwarder_cancel, [source_pid] {
+	const pid_t source_pid = m_implementation->m_pid;
+	m_implementation->m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_implementation->m_pstdout, exe.m_implementation->m_pstdin, m_implementation->m_forwarder_cancel, [source_pid] {
 		if (source_pid > 0)
 			kill(source_pid, SIGTERM);
 	}));
 	#else
-	const HANDLE source_process = m_piProcInfo.hProcess;
-	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, m_forwarder_cancel, [source_process] {
+	const HANDLE source_process = m_implementation->m_piProcInfo.hProcess;
+	m_implementation->m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_implementation->m_pstdout, exe.m_implementation->m_pstdin, m_implementation->m_forwarder_cancel, [source_process] {
 		if (source_process != nullptr)
 			TerminateProcess(source_process, 0);
 	}));
@@ -150,29 +126,29 @@ Process& Process::operator>>(Process& exe) {
 	return exe;
 }
 std::string& Process::operator>>(std::string& data) const {
-	if (m_pstdout)
-		*m_pstdout >> data;
+	if (m_implementation && m_implementation->m_pstdout)
+		*m_implementation->m_pstdout >> data;
 	return data;
 }
 std::string& Process::Stderr(std::string& str) const {
-	if (m_pstderr)
-		*m_pstderr >> str;
+	if (m_implementation && m_implementation->m_pstderr)
+		*m_implementation->m_pstderr >> str;
 	return str;
 }
 std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe) {
 	std::string data;
-	if (exe.m_pstdout)
-		*exe.m_pstdout >> data;
+	if (exe.m_implementation && exe.m_implementation->m_pstdout)
+		*exe.m_implementation->m_pstdout >> data;
 	return os << data;
 }
 Process& Process::operator<<(const std::string& data) {
-	if (m_pstdin)
-		*m_pstdin << data;
+	if (m_implementation && m_implementation->m_pstdin)
+		*m_implementation->m_pstdin << data;
 	return *this;
 }
 void Process::operator<<(const System::_EoF&) {
-	if (m_pstdin)
-		m_pstdin->CloseWrite();
+	if (m_implementation && m_implementation->m_pstdin)
+		m_implementation->m_pstdin->CloseWrite();
 }
 void Process::Run() {
 #ifdef UNIX
@@ -190,8 +166,8 @@ void Process::Run() {
 		throw ProcessCreationError(std::strerror(error));
 	}
 #endif
-	m_pid = fork();
-	if (m_pid == 0) {
+	m_implementation->m_pid = fork();
+	if (m_implementation->m_pid == 0) {
 		close(exec_status[0]);
 		auto report_exec_error = [&exec_status] {
 			const int error = errno;
@@ -209,35 +185,35 @@ void Process::Run() {
 				}
 			}
 		};
-		m_pstdin->CloseWrite();
-		if (!m_pstdin->BindRead(STDIN_FILENO)) {
+		m_implementation->m_pstdin->CloseWrite();
+		if (!m_implementation->m_pstdin->BindRead(STDIN_FILENO)) {
 			report_exec_error();
 			_exit(127);
 		}
-		m_pstdout->CloseRead();
-		if (!m_pstdout->BindWrite(STDOUT_FILENO)) {
+		m_implementation->m_pstdout->CloseRead();
+		if (!m_implementation->m_pstdout->BindWrite(STDOUT_FILENO)) {
 			report_exec_error();
 			_exit(127);
 		}
-		m_pstderr->CloseRead();
-		if (!m_pstderr->BindWrite(STDERR_FILENO)) {
+		m_implementation->m_pstderr->CloseRead();
+		if (!m_implementation->m_pstderr->BindWrite(STDERR_FILENO)) {
 			report_exec_error();
 			_exit(127);
 		}
 		std::vector<char*> argv;
-		argv.reserve(m_arguments.size() + 2);
-		argv.push_back(const_cast<char*>(m_program.c_str()));
-		for (size_t i = 0; i < m_arguments.size(); i++)
-			argv.push_back(m_arguments[i].data());
+		argv.reserve(m_implementation->m_arguments.size() + 2);
+		argv.push_back(const_cast<char*>(m_implementation->m_program.c_str()));
+		for (size_t i = 0; i < m_implementation->m_arguments.size(); i++)
+			argv.push_back(m_implementation->m_arguments[i].data());
 		argv.push_back(nullptr);
-		execvp(m_program.c_str(), argv.data());
+		execvp(m_implementation->m_program.c_str(), argv.data());
 		report_exec_error();
 		_exit(127);
-	} else if (m_pid > 0) {
+	} else if (m_implementation->m_pid > 0) {
 		close(exec_status[1]);
-		m_pstdin->CloseRead();
-		m_pstdout->CloseWrite();
-		m_pstderr->CloseWrite();
+		m_implementation->m_pstdin->CloseRead();
+		m_implementation->m_pstdout->CloseWrite();
+		m_implementation->m_pstderr->CloseWrite();
 		int child_error = 0;
 		char* data = reinterpret_cast<char*>(&child_error);
 		size_t remaining = sizeof(child_error);
@@ -256,35 +232,35 @@ void Process::Run() {
 		if (remaining == sizeof(child_error))
 			return;
 		if (remaining == 0) {
-			waitpid(m_pid, nullptr, 0);
-			m_status = Status::TERMINATED;
-			m_pid = -1;
+			waitpid(m_implementation->m_pid, nullptr, 0);
+			m_implementation->m_status = Status::TERMINATED;
+			m_implementation->m_pid = -1;
 			if (child_error == ENOENT)
-				throw ExecutableNotFound(m_program);
+				throw ExecutableNotFound(m_implementation->m_program);
 			throw ProcessCreationError(std::strerror(child_error));
 		}
-		waitpid(m_pid, nullptr, 0);
-		m_status = Status::TERMINATED;
-		m_pid = -1;
+		waitpid(m_implementation->m_pid, nullptr, 0);
+		m_implementation->m_status = Status::TERMINATED;
+		m_implementation->m_pid = -1;
 		throw ProcessCreationError("Incomplete exec failure status");
 	} else {
 		close(exec_status[0]);
 		close(exec_status[1]);
-		m_status = Status::TERMINATED;
+		m_implementation->m_status = Status::TERMINATED;
 		const int error = errno;
 		throw ProcessCreationError(std::strerror(error));
 	}
 #else
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
-	ZeroMemory(&m_siStartInfo, sizeof(STARTUPINFOW));
-	m_siStartInfo.cb = sizeof(STARTUPINFOW);
-	m_siStartInfo.hStdError = m_pstderr->WriteHandle();
-	m_siStartInfo.hStdOutput = m_pstdout->WriteHandle();
-	m_siStartInfo.hStdInput = m_pstdin->ReadHandle();
-	m_siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
-	m_pstdout->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
-	m_pstderr->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
-	m_pstdin->WriteHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
+	m_implementation->m_siStartInfo.cb = sizeof(STARTUPINFOW);
+	m_implementation->m_siStartInfo.hStdError = m_implementation->m_pstderr->WriteHandle();
+	m_implementation->m_siStartInfo.hStdOutput = m_implementation->m_pstdout->WriteHandle();
+	m_implementation->m_siStartInfo.hStdInput = m_implementation->m_pstdin->ReadHandle();
+	m_implementation->m_siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+	m_implementation->m_pstdout->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
+	m_implementation->m_pstderr->ReadHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
+	m_implementation->m_pstdin->WriteHandleInformation(HANDLE_FLAG_INHERIT, FALSE);
 	std::wstring command = FullCommand();
 	std::vector<wchar_t> cmdline(command.begin(), command.end());
 	cmdline.push_back(L'\0');
@@ -297,77 +273,77 @@ void Process::Run() {
 			CREATE_NO_WINDOW,
 			NULL,
 			NULL,
-			&m_siStartInfo,
-			&m_piProcInfo)) {
-		m_pstdout->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
-		m_pstderr->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
-		m_pstdin->ReadHandleInformation(HANDLE_FLAG_INHERIT, 0);
-		m_pstdout->CloseWrite();
-		m_pstderr->CloseWrite();
-		m_pstdin->CloseRead();
+			&m_implementation->m_siStartInfo,
+			&m_implementation->m_piProcInfo)) {
+		m_implementation->m_pstdout->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
+		m_implementation->m_pstderr->WriteHandleInformation(HANDLE_FLAG_INHERIT, 0);
+		m_implementation->m_pstdin->ReadHandleInformation(HANDLE_FLAG_INHERIT, 0);
+		m_implementation->m_pstdout->CloseWrite();
+		m_implementation->m_pstderr->CloseWrite();
+		m_implementation->m_pstdin->CloseRead();
 	} else {
-		m_status = Status::TERMINATED;
+		m_implementation->m_status = Status::TERMINATED;
 		const DWORD error = GetLastError();
 		if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
-			throw ExecutableNotFound(m_program);
+			throw ExecutableNotFound(m_implementation->m_program);
 		throw ProcessCreationError("CreateProcessW failed with error " + std::to_string(error));
 	}
 #endif
 }
 void Process::Send(const std::string& str) {
-	if (m_pstdin)
-		*m_pstdin << str;
+	if (m_implementation->m_pstdin)
+		*m_implementation->m_pstdin << str;
 }
 #ifdef UNIX
 int Process::Wait() noexcept {
-	if (m_status == Status::TERMINATED || m_pid <= 0)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
 		return -1;
-	if (m_forwarder) {
-		m_forwarder_cancel->store(true);
-		m_pstdout->CloseRead();
+	if (m_implementation->m_forwarder) {
+		m_implementation->m_forwarder_cancel->store(true);
+		m_implementation->m_pstdout->CloseRead();
 	}
 	int status = 0;
-	if (waitpid(m_pid, &status, 0) == -1) {
-		m_status = Status::TERMINATED;
-		m_pid = -1;
-		if (m_forwarder) {
-			m_forwarder->join();
-			m_forwarder.reset();
+	if (waitpid(m_implementation->m_pid, &status, 0) == -1) {
+		m_implementation->m_status = Status::TERMINATED;
+		m_implementation->m_pid = -1;
+		if (m_implementation->m_forwarder) {
+			m_implementation->m_forwarder->join();
+			m_implementation->m_forwarder.reset();
 		}
 		return -1;
 	}
-	m_status = Status::TERMINATED;
-	m_pid = -1;
-	if (m_forwarder) {
-		m_forwarder->join();
-		m_forwarder.reset();
+	m_implementation->m_status = Status::TERMINATED;
+	m_implementation->m_pid = -1;
+	if (m_implementation->m_forwarder) {
+		m_implementation->m_forwarder->join();
+		m_implementation->m_forwarder.reset();
 	}
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
 	return -1;
 }
 int Process::Wait(std::chrono::milliseconds timeout) noexcept {
-	if (m_status == Status::TERMINATED || m_pid <= 0)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
 		return -1;
 	const auto deadline = std::chrono::steady_clock::now() + timeout;
 	int status = 0;
 	while (true) {
-		const pid_t result = waitpid(m_pid, &status, WNOHANG);
-		if (result == m_pid) {
-			m_status = Status::TERMINATED;
-			m_pid = -1;
-			if (m_forwarder) {
-				m_forwarder_cancel->store(true);
-				m_pstdout->CloseRead();
-				m_forwarder->join();
-				m_forwarder.reset();
+		const pid_t result = waitpid(m_implementation->m_pid, &status, WNOHANG);
+		if (result == m_implementation->m_pid) {
+			m_implementation->m_status = Status::TERMINATED;
+			m_implementation->m_pid = -1;
+			if (m_implementation->m_forwarder) {
+				m_implementation->m_forwarder_cancel->store(true);
+				m_implementation->m_pstdout->CloseRead();
+				m_implementation->m_forwarder->join();
+				m_implementation->m_forwarder.reset();
 			}
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
 		if (result == -1 || std::chrono::steady_clock::now() >= deadline) {
-			if (m_forwarder) {
-				m_forwarder_cancel->store(true);
-				m_pstdout->CloseRead();
+			if (m_implementation->m_forwarder) {
+				m_implementation->m_forwarder_cancel->store(true);
+				m_implementation->m_pstdout->CloseRead();
 			}
 			return -1;
 		}
@@ -375,72 +351,78 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 	}
 }
 pid_t Process::Pid() noexcept {
-	return m_pid;
+	if (!m_implementation)
+		return -1;
+	return m_implementation->m_pid;
 }
 #else
 DWORD Process::Wait() noexcept {
-	if (m_status == Status::TERMINATED || m_piProcInfo.hProcess == nullptr)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
-	if (m_forwarder) {
-		m_forwarder_cancel->store(true);
-		m_pstdout->CloseRead();
+	if (m_implementation->m_forwarder) {
+		m_implementation->m_forwarder_cancel->store(true);
+		m_implementation->m_pstdout->CloseRead();
 	}
 	DWORD exitCode = 0;
-	if (WaitForSingleObject(m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
-		m_status = Status::TERMINATED;
+	if (WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
+		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
-	if (!GetExitCodeProcess(m_piProcInfo.hProcess, &exitCode)) {
-		m_status = Status::TERMINATED;
+	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
+		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
-	CloseHandle(m_piProcInfo.hProcess);
-	CloseHandle(m_piProcInfo.hThread);
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
-	m_status = Status::TERMINATED;
-	if (m_forwarder) {
-		m_forwarder->join();
-		m_forwarder.reset();
+	CloseHandle(m_implementation->m_piProcInfo.hProcess);
+	CloseHandle(m_implementation->m_piProcInfo.hThread);
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	m_implementation->m_status = Status::TERMINATED;
+	if (m_implementation->m_forwarder) {
+		m_implementation->m_forwarder->join();
+		m_implementation->m_forwarder.reset();
 	}
 	return exitCode;
 }
 DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
-	if (m_status == Status::TERMINATED || m_piProcInfo.hProcess == nullptr)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
 	const auto count = timeout.count() < 0 ? 0 : timeout.count();
-	const DWORD wait_result = WaitForSingleObject(m_piProcInfo.hProcess, static_cast<DWORD>(count));
+	const DWORD wait_result = WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, static_cast<DWORD>(count));
 	if (wait_result != WAIT_OBJECT_0) {
-		if (m_forwarder) {
-			m_forwarder_cancel->store(true);
-			m_pstdout->CloseRead();
+		if (m_implementation->m_forwarder) {
+			m_implementation->m_forwarder_cancel->store(true);
+			m_implementation->m_pstdout->CloseRead();
 		}
 		return static_cast<DWORD>(-1);
 	}
-	if (m_forwarder) {
-		m_forwarder_cancel->store(true);
-		m_pstdout->CloseRead();
-		m_forwarder->join();
-		m_forwarder.reset();
+	if (m_implementation->m_forwarder) {
+		m_implementation->m_forwarder_cancel->store(true);
+		m_implementation->m_pstdout->CloseRead();
+		m_implementation->m_forwarder->join();
+		m_implementation->m_forwarder.reset();
 	}
 	DWORD exitCode = 0;
-	if (!GetExitCodeProcess(m_piProcInfo.hProcess, &exitCode))
+	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode))
 		return static_cast<DWORD>(-1);
-	CloseHandle(m_piProcInfo.hProcess);
-	CloseHandle(m_piProcInfo.hThread);
-	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
-	m_status = Status::TERMINATED;
+	CloseHandle(m_implementation->m_piProcInfo.hProcess);
+	CloseHandle(m_implementation->m_piProcInfo.hThread);
+	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	m_implementation->m_status = Status::TERMINATED;
 	return exitCode;
 }
 PROCESS_INFORMATION Process::Pid() {
-	return m_piProcInfo;
+	if (!m_implementation)
+		return PROCESS_INFORMATION{};
+	return m_implementation->m_piProcInfo;
 }
 #endif
 void Process::Suspend() {
+	if (!m_implementation)
+		return;
 #ifdef UNIX
-	if (m_pid > 0)
-		::kill(m_pid, SIGSTOP);
+	if (m_implementation->m_pid > 0)
+		::kill(m_implementation->m_pid, SIGSTOP);
 #else
-	if (m_piProcInfo.dwProcessId == 0)
+	if (m_implementation->m_piProcInfo.dwProcessId == 0)
 		return;
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (hThreadSnap == INVALID_HANDLE_VALUE)
@@ -449,7 +431,7 @@ void Process::Suspend() {
 	te32.dwSize = sizeof(THREADENTRY32);
 	if (Thread32First(hThreadSnap, &te32)) {
 		do {
-			if (te32.th32OwnerProcessID == m_piProcInfo.dwProcessId) {
+			if (te32.th32OwnerProcessID == m_implementation->m_piProcInfo.dwProcessId) {
 				HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID);
 				if (hThread != NULL) {
 					SuspendThread(hThread);
@@ -460,14 +442,16 @@ void Process::Suspend() {
 	}
 	CloseHandle(hThreadSnap);
 #endif
-	m_status = Status::SUSPENDED;
+	m_implementation->m_status = Status::SUSPENDED;
 }
 void Process::Resume() {
+	if (!m_implementation)
+		return;
 #ifdef UNIX
-	if (m_pid > 0)
-		::kill(m_pid, SIGCONT);
+	if (m_implementation->m_pid > 0)
+		::kill(m_implementation->m_pid, SIGCONT);
 #else
-	if (m_piProcInfo.dwProcessId == 0)
+	if (m_implementation->m_piProcInfo.dwProcessId == 0)
 		return;
 	HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
 	if (hThreadSnap == INVALID_HANDLE_VALUE)
@@ -476,7 +460,7 @@ void Process::Resume() {
 	te32.dwSize = sizeof(THREADENTRY32);
 	if (Thread32First(hThreadSnap, &te32)) {
 		do {
-			if (te32.th32OwnerProcessID == m_piProcInfo.dwProcessId) {
+			if (te32.th32OwnerProcessID == m_implementation->m_piProcInfo.dwProcessId) {
 				HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID);
 				if (hThread != NULL) {
 					ResumeThread(hThread);
@@ -487,7 +471,7 @@ void Process::Resume() {
 	}
 	CloseHandle(hThreadSnap);
 #endif
-	m_status = Status::RUNNING;
+	m_implementation->m_status = Status::RUNNING;
 }
 #ifdef WINDOWS
 std::string Process::QuoteWindowsArgument(const std::string& argument) {
@@ -511,8 +495,8 @@ std::string Process::QuoteWindowsArgument(const std::string& argument) {
 }
 std::wstring Process::FullCommand() const {
 	std::stringstream ss;
-	std::vector<std::string> full = { m_program.string() };
-	full.insert(full.end(), m_arguments.begin(), m_arguments.end());
+	std::vector<std::string> full = { m_implementation->m_program.string() };
+	full.insert(full.end(), m_implementation->m_arguments.begin(), m_implementation->m_arguments.end());
 	for (size_t i = 0; i < full.size(); ++i) {
 		if (i)
 			ss << ' ';

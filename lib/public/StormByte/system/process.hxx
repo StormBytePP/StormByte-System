@@ -21,12 +21,10 @@
 
 #include <StormByte/system/visibility.h>
 
-#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <thread>
 #ifdef WINDOWS
 #include <windows.h>
 #else
@@ -39,6 +37,7 @@
  */
 namespace StormByte::System {
 	class Pipe;	///< Forward declaration
+	class ProcessImplementation;	///< Forward declaration
 
 	/**
 	 * @struct _EoF
@@ -201,23 +200,22 @@ namespace StormByte::System {
 				TERMINATED	///< Finished / cleaned up
 			};
 
-		protected:
-			Status m_status;									///< Current status
-			#ifdef UNIX
-			pid_t m_pid;										///< Child PID (-1 if none)
-			#else
-			STARTUPINFOW m_siStartInfo;							///< Startup info
-			PROCESS_INFORMATION m_piProcInfo;					///< Process info
-			#endif
-			std::shared_ptr<Pipe> m_pstdout;					///< stdout pipe
-			std::shared_ptr<Pipe> m_pstdin;					///< stdin pipe
-			std::shared_ptr<Pipe> m_pstderr;					///< stderr pipe
-			std::filesystem::path m_program;					///< Program path
-			std::vector<std::string> m_arguments;				///< Arguments
-			std::unique_ptr<std::thread> m_forwarder;			///< Forwarder thread
-			std::shared_ptr<std::atomic_bool> m_forwarder_cancel;			///< Forwarder cancellation state
-
 		private:
+			#ifdef WINDOWS
+			/**
+			 * @brief Quote one argument for the Windows command-line parser.
+			 * @param argument Argument text.
+			 * @return Quoted command-line argument.
+			 */
+			static std::string QuoteWindowsArgument(const std::string& argument);
+
+			/**
+			 * @brief Full command line as wide string.
+			 * @return Command line.
+			 */
+			std::wstring FullCommand() const;
+			#endif
+
 			/**
 			 * @brief Write to stdin.
 			 * @param str Data.
@@ -234,20 +232,7 @@ namespace StormByte::System {
 			 */
 			void ReleaseOwnership() noexcept;
 
-			#ifdef WINDOWS
-			/**
-			 * @brief Quote one argument for the Windows command-line parser.
-			 * @param argument Argument text.
-			 * @return Quoted command-line argument.
-			 */
-			static std::string QuoteWindowsArgument(const std::string& argument);
-
-			/**
-			 * @brief Full command line as wide string.
-			 * @return Command line.
-			 */
-			std::wstring FullCommand() const;
-			#endif
+			std::unique_ptr<ProcessImplementation> m_implementation;
 	};
 
 	/**
