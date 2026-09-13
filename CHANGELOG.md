@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ported System exception messages to the `StormByte::Component` format and added `ProcessCreationError` for process creation failures.
 - Moved process pipeline forwarding into the internal `Pipe` abstraction while preserving buffered and future output.
 
+### Fixed
+
+- Pipe construction now checks platform errors and moved pipes invalidate their source endpoints.
+
 ## [Summary]
 
 StormByte System is the C++26 process and environment layer of the StormByte suite.

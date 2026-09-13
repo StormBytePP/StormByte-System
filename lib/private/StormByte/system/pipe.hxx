@@ -63,7 +63,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Move constructor.
 			 */
-			Pipe(Pipe&&) = default;
+			Pipe(Pipe&& pipe) noexcept;
 
 			/**
 			 * @brief Copy assignment (deleted).
@@ -73,7 +73,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Move assignment.
 			 */
-			Pipe& operator=(Pipe&&) = default;
+			Pipe& operator=(Pipe&& pipe) noexcept;
 
 			/**
 			 * @brief Close both ends.

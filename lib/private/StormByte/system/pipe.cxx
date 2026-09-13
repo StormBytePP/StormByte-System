@@ -18,6 +18,14 @@
  */
 
 #include <StormByte/system/pipe.hxx>
+#include <StormByte/system/exception.hxx>
+#include <cerrno>
+#include <cstring>
+#ifndef WINDOWS
+#include <system_error>
+#else
+#include <string>
+#endif
 using namespace StormByte::System;
 #ifdef UNIX
 #include <fcntl.h>
@@ -29,22 +37,62 @@ using namespace StormByte::System;
 SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 #endif
 #include <vector>
-Pipe::Pipe() {
+Pipe::Pipe():
+#ifdef WINDOWS
+	m_fd{ INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE } {
+#else
+	m_fd{ -1, -1 } {
+#endif
 	#ifdef UNIX
 	static std::once_flag sigpipe_once;
 	std::call_once(sigpipe_once, [] {
 		signal(SIGPIPE, SIG_IGN);
 	});
+	int result;
 	#ifdef LINUX
-	(void)pipe2(m_fd, O_CLOEXEC);
+	result = pipe2(m_fd, O_CLOEXEC);
 	#else
-	(void)pipe(m_fd);
-	fcntl(m_fd[0], F_SETFD, FD_CLOEXEC);
-	fcntl(m_fd[1], F_SETFD, FD_CLOEXEC);
+	result = pipe(m_fd);
+	if (result == 0 && (fcntl(m_fd[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(m_fd[1], F_SETFD, FD_CLOEXEC) == -1))
+		result = -1;
 	#endif
+	if (result == -1) {
+		const int error = errno;
+		CloseRead();
+		CloseWrite();
+		throw ProcessCreationError(std::strerror(error));
+	}
 	#else
-	CreatePipe(&m_fd[0], &m_fd[1], &m_sAttr, 0);
+	if (!CreatePipe(&m_fd[0], &m_fd[1], &m_sAttr, 0))
+		throw ProcessCreationError("CreatePipe failed with error " + std::to_string(GetLastError()));
 	#endif
+}
+Pipe::Pipe(Pipe&& pipe) noexcept:
+#ifdef WINDOWS
+	m_fd{ pipe.m_fd[0], pipe.m_fd[1] } {
+	pipe.m_fd[0] = INVALID_HANDLE_VALUE;
+	pipe.m_fd[1] = INVALID_HANDLE_VALUE;
+#else
+	m_fd{ pipe.m_fd[0], pipe.m_fd[1] } {
+	pipe.m_fd[0] = -1;
+	pipe.m_fd[1] = -1;
+#endif
+}
+Pipe& Pipe::operator=(Pipe&& pipe) noexcept {
+	if (this == &pipe)
+		return *this;
+	CloseRead();
+	CloseWrite();
+	m_fd[0] = pipe.m_fd[0];
+	m_fd[1] = pipe.m_fd[1];
+#ifdef WINDOWS
+	pipe.m_fd[0] = INVALID_HANDLE_VALUE;
+	pipe.m_fd[1] = INVALID_HANDLE_VALUE;
+#else
+	pipe.m_fd[0] = -1;
+	pipe.m_fd[1] = -1;
+#endif
+	return *this;
 }
 Pipe::~Pipe() noexcept {
 	CloseRead();
