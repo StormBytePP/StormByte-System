@@ -445,6 +445,10 @@ int main() {
 	#define RUN_TEST_CASE(test_case) do { \
 		std::cerr << "[ RUN      ] " << #test_case << std::endl; \
 		try { result += test_case(); } \
+		catch (const StormByte::Exception& exception) { \
+			std::cerr << "[ EXCEPTION ] " << #test_case << ": " << exception.what() << std::endl; \
+			++result; \
+		} \
 		catch (const std::exception& exception) { \
 			std::cerr << "[ EXCEPTION ] " << #test_case << ": " << exception.what() << std::endl; \
 			++result; \

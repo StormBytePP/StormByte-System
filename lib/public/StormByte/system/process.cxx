@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <cstdlib>
 #else
+#include <cctype>
 #include <tlhelp32.h>
 #include <sstream>
 #include <iterator>
@@ -526,9 +527,29 @@ std::wstring Process::FullCommand() const {
 	std::stringstream ss;
 	std::vector<std::string> full = { m_implementation->m_program.string() };
 	full.insert(full.end(), m_implementation->m_arguments.begin(), m_implementation->m_arguments.end());
+	std::string executable = m_implementation->m_program.filename().string();
+	for (char& character: executable)
+		character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+	const bool command_processor = executable == "cmd.exe" || executable == "cmd";
+	bool command_text = false;
 	for (size_t i = 0; i < full.size(); ++i) {
 		if (i)
 			ss << ' ';
+		if (command_processor && i > 0) {
+			if (command_text) {
+				ss << full[i];
+				continue;
+			}
+			if (full[i] == "/c" || full[i] == "/k") {
+				ss << full[i];
+				command_text = true;
+				continue;
+			}
+			if (full[i] == "/d" || full[i] == "/s") {
+				ss << full[i];
+				continue;
+			}
+		}
 		ss << QuoteWindowsArgument(full[i]);
 	}
 	const std::string narrow = ss.str();
