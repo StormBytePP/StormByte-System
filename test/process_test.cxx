@@ -22,6 +22,10 @@
 #include <StormByte/system/variable.hxx>
 #include <StormByte/test_handlers.h>
 #include <algorithm>
+#ifdef UNIX
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
@@ -247,6 +251,34 @@ int test_signaled_process() {
 	ASSERT_EQUAL("test_signaled_process", -1, proc.Wait());
 	RETURN_TEST("test_signaled_process", 0);
 }
+int test_standard_descriptor_reuse() {
+	const int saved_stdin = dup(STDIN_FILENO);
+	const int saved_stdout = dup(STDOUT_FILENO);
+	const int saved_stderr = dup(STDERR_FILENO);
+	if (saved_stdin == -1 || saved_stdout == -1 || saved_stderr == -1)
+		return 1;
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+	std::string output;
+	int result = 0;
+	try {
+		StormByte::System::Process proc("/bin/echo", { "descriptor-safe" });
+		proc >> output;
+		result = proc.Wait();
+	} catch (...) {
+		result = -1;
+	}
+	dup2(saved_stdin, STDIN_FILENO);
+	dup2(saved_stdout, STDOUT_FILENO);
+	dup2(saved_stderr, STDERR_FILENO);
+	close(saved_stdin);
+	close(saved_stdout);
+	close(saved_stderr);
+	ASSERT_EQUAL("test_standard_descriptor_reuse", 0, result);
+	ASSERT_EQUAL("test_standard_descriptor_reuse", "descriptor-safe\n", output);
+	RETURN_TEST("test_standard_descriptor_reuse", 0);
+}
 int test_move_process() {
 	std::vector<std::string> args = { "moved" };
 	StormByte::System::Process original("/bin/echo", args);
@@ -304,6 +336,15 @@ int test_windows_argument_with_space() {
 	ASSERT_EQUAL("test_windows_argument_with_space", "hello world", Trim(output));
 	ASSERT_EQUAL("test_windows_argument_with_space", 0u, proc.Wait());
 	RETURN_TEST("test_windows_argument_with_space", 0);
+}
+int test_windows_argument_with_quotes() {
+	std::vector<std::string> args = { "/c", "echo", "hello \"world\"" };
+	StormByte::System::Process proc("cmd.exe", args);
+	std::string output;
+	proc >> output;
+	ASSERT_EQUAL("test_windows_argument_with_quotes", "hello \"world\"", Trim(output));
+	ASSERT_EQUAL("test_windows_argument_with_quotes", 0u, proc.Wait());
+	RETURN_TEST("test_windows_argument_with_quotes", 0);
 }
 int test_stdin_roundtrip_windows() {
 	// sort.exe is in System32 on all supported Windows images
@@ -378,6 +419,7 @@ int main() {
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
 	result += test_signaled_process();
+	result += test_standard_descriptor_reuse();
 	result += test_move_process();
 	result += test_move_assignment();
 	result += test_tr_pipeline();

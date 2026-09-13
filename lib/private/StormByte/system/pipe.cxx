@@ -56,6 +56,21 @@ Pipe::Pipe():
 	if (result == 0 && (fcntl(m_fd[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(m_fd[1], F_SETFD, FD_CLOEXEC) == -1))
 		result = -1;
 	#endif
+	if (result == 0) {
+		for (int& fd: m_fd) {
+			if (fd >= STDIN_FILENO + 3)
+				continue;
+			const int duplicate = fcntl(fd, F_DUPFD, STDIN_FILENO + 3);
+			if (duplicate == -1 || fcntl(duplicate, F_SETFD, FD_CLOEXEC) == -1) {
+				if (duplicate != -1)
+					close(duplicate);
+				result = -1;
+				break;
+			}
+			close(fd);
+			fd = duplicate;
+		}
+	}
 	if (result == -1) {
 		const int error = errno;
 		CloseRead();
