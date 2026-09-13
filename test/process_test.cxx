@@ -254,6 +254,12 @@ int test_signaled_process() {
 	ASSERT_EQUAL("test_signaled_process", -1, proc.Wait());
 	RETURN_TEST("test_signaled_process", 0);
 }
+int test_write_after_consumer_exit() {
+	StormByte::System::Process proc("/bin/true");
+	ASSERT_EQUAL("test_write_after_consumer_exit", 0, proc.Wait());
+	ASSERT_THROWS("test_write_after_consumer_exit", proc << std::string(4096, 'x'), StormByte::System::ProcessCreationError);
+	RETURN_TEST("test_write_after_consumer_exit", 0);
+}
 volatile sig_atomic_t wait_interrupt_signal = 0;
 void wait_interrupt_handler(int) {
 	wait_interrupt_signal = 1;
@@ -372,6 +378,17 @@ int test_windows_argument_with_quotes() {
 	ASSERT_EQUAL("test_windows_argument_with_quotes", 0u, proc.Wait());
 	RETURN_TEST("test_windows_argument_with_quotes", 0);
 }
+int test_windows_long_environment_expansion() {
+	const std::string value = "0123456789";
+	_putenv_s("STORMBYTE_LONG_ENV", value.c_str());
+	std::wstring input;
+	for (size_t i = 0; i < 4000; ++i)
+		input += L"%STORMBYTE_LONG_ENV%";
+	const std::string expanded = StormByte::System::Variable::Expand(input);
+	_putenv_s("STORMBYTE_LONG_ENV", "");
+	ASSERT_EQUAL("test_windows_long_environment_expansion", 40000u, expanded.size());
+	RETURN_TEST("test_windows_long_environment_expansion", 0);
+}
 int test_stdin_roundtrip_windows() {
 	// sort.exe is in System32 on all supported Windows images
 	StormByte::System::Process proc("sort.exe");
@@ -450,6 +467,7 @@ int main() {
 	result += test_move_process();
 	result += test_move_assignment();
 	result += test_tr_pipeline();
+	result += test_write_after_consumer_exit();
 #elif defined(WINDOWS)
 	result += test_basic_execution_windows();
 	result += test_windows_argument_with_space();
@@ -457,6 +475,7 @@ int main() {
 	result += test_exit_code_windows();
 	result += test_move_process_windows();
 	result += test_dir_lists_something();
+	result += test_windows_long_environment_expansion();
 #endif
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

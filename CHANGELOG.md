@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pipeline forwarding cancellation now wakes its read loop without relying on cross-thread descriptor closure.
 - Expanded process, pipeline, signal-termination, and home-path regression coverage.
 - Fixed EOF handling after interrupted reads and added a regression for `waitpid` interrupted by signals.
+- Added regressions for writes after consumer exit and oversized Windows environment expansion.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]
