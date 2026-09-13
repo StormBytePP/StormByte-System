@@ -255,7 +255,7 @@ int test_signaled_process() {
 	RETURN_TEST("test_signaled_process", 0);
 }
 int test_write_after_consumer_exit() {
-	StormByte::System::Process proc("/bin/true");
+	StormByte::System::Process proc("true");
 	ASSERT_EQUAL("test_write_after_consumer_exit", 0, proc.Wait());
 	ASSERT_THROWS("test_write_after_consumer_exit", proc << std::string(4096, 'x'), StormByte::System::ProcessCreationError);
 	RETURN_TEST("test_write_after_consumer_exit", 0);
@@ -442,59 +442,42 @@ int test_dir_lists_something() {
 #endif
 int main() {
 	int result = 0;
-	#define RUN_TEST_CASE(test_case) do { \
-		std::cerr << "[ RUN      ] " << #test_case << std::endl; \
-		try { result += test_case(); } \
-		catch (const StormByte::Exception& exception) { \
-			std::cerr << "[ EXCEPTION ] " << #test_case << ": " << exception.what() << std::endl; \
-			++result; \
-		} \
-		catch (const std::exception& exception) { \
-			std::cerr << "[ EXCEPTION ] " << #test_case << ": " << exception.what() << std::endl; \
-			++result; \
-		} \
-		catch (...) { \
-			std::cerr << "[ EXCEPTION ] " << #test_case << ": unknown exception" << std::endl; \
-			++result; \
-		} \
-	} while (false)
 #ifdef UNIX
-RUN_TEST_CASE(test_basic_execution);
-RUN_TEST_CASE(test_pipeline_execution);
-RUN_TEST_CASE(test_pipeline_accumulated_and_future_output);
-RUN_TEST_CASE(test_pipeline_destination_exits_first);
-RUN_TEST_CASE(test_pipeline_reconnect);
-RUN_TEST_CASE(test_pipeline_reconnect_long_lived);
-RUN_TEST_CASE(test_pipeline_sort);
-RUN_TEST_CASE(test_pipeline_find_sort_wc);
-RUN_TEST_CASE(test_pipeline_echo_sort_wc);
-RUN_TEST_CASE(process_to_ostream);
-RUN_TEST_CASE(test_stdin_roundtrip);
-RUN_TEST_CASE(test_stderr_capture);
-RUN_TEST_CASE(test_exit_code_false);
-RUN_TEST_CASE(test_exit_code_true);
-RUN_TEST_CASE(test_missing_executable);
-RUN_TEST_CASE(test_variable_expansion);
-RUN_TEST_CASE(test_wait_timeout);
-RUN_TEST_CASE(test_wait_with_undrained_pipeline);
-RUN_TEST_CASE(test_signaled_process);
-RUN_TEST_CASE(test_wait_interrupted_by_signal);
-RUN_TEST_CASE(test_standard_descriptor_reuse);
-RUN_TEST_CASE(test_move_process);
-RUN_TEST_CASE(test_move_assignment);
-RUN_TEST_CASE(test_tr_pipeline);
-RUN_TEST_CASE(test_write_after_consumer_exit);
+result += test_basic_execution();
+result += test_pipeline_execution();
+result += test_pipeline_accumulated_and_future_output();
+result += test_pipeline_destination_exits_first();
+result += test_pipeline_reconnect();
+result += test_pipeline_reconnect_long_lived();
+result += test_pipeline_sort();
+result += test_pipeline_find_sort_wc();
+result += test_pipeline_echo_sort_wc();
+result += process_to_ostream();
+result += test_stdin_roundtrip();
+result += test_stderr_capture();
+result += test_exit_code_false();
+result += test_exit_code_true();
+result += test_missing_executable();
+result += test_variable_expansion();
+result += test_wait_timeout();
+result += test_wait_with_undrained_pipeline();
+result += test_signaled_process();
+result += test_wait_interrupted_by_signal();
+result += test_standard_descriptor_reuse();
+result += test_move_process();
+result += test_move_assignment();
+result += test_tr_pipeline();
+result += test_write_after_consumer_exit();
 #elif defined(WINDOWS)
-RUN_TEST_CASE(test_basic_execution_windows);
-RUN_TEST_CASE(test_windows_argument_with_space);
-RUN_TEST_CASE(test_windows_argument_with_quotes);
-RUN_TEST_CASE(test_stdin_roundtrip_windows);
-RUN_TEST_CASE(test_exit_code_windows);
-RUN_TEST_CASE(test_move_process_windows);
-RUN_TEST_CASE(test_dir_lists_something);
-RUN_TEST_CASE(test_windows_long_environment_expansion);
+result += test_basic_execution_windows();
+result += test_windows_argument_with_space();
+result += test_windows_argument_with_quotes();
+result += test_stdin_roundtrip_windows();
+result += test_exit_code_windows();
+result += test_move_process_windows();
+result += test_dir_lists_something();
+result += test_windows_long_environment_expansion();
 #endif
-	#undef RUN_TEST_CASE
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {
