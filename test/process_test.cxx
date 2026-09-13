@@ -253,6 +253,15 @@ int test_basic_execution_windows() {
 	ASSERT_EQUAL("test_basic_execution_windows", 0u, exit_code);
 	RETURN_TEST("test_basic_execution_windows", 0);
 }
+int test_windows_argument_with_space() {
+	std::vector<std::string> args = { "/c", "echo", "hello world" };
+	StormByte::System::Process proc("cmd.exe", args);
+	std::string output;
+	proc >> output;
+	ASSERT_EQUAL("test_windows_argument_with_space", "hello world", Trim(output));
+	ASSERT_EQUAL("test_windows_argument_with_space", 0u, proc.Wait());
+	RETURN_TEST("test_windows_argument_with_space", 0);
+}
 int test_stdin_roundtrip_windows() {
 	// sort.exe is in System32 on all supported Windows images
 	StormByte::System::Process proc("sort.exe");
@@ -327,6 +336,7 @@ int main() {
 	result += test_tr_pipeline();
 #elif defined(WINDOWS)
 	result += test_basic_execution_windows();
+	result += test_windows_argument_with_space();
 	result += test_stdin_roundtrip_windows();
 	result += test_exit_code_windows();
 	result += test_move_process_windows();

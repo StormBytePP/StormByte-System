@@ -236,6 +236,13 @@ namespace StormByte::System {
 
 			#ifdef WINDOWS
 			/**
+			 * @brief Quote one argument for the Windows command-line parser.
+			 * @param argument Argument text.
+			 * @return Quoted command-line argument.
+			 */
+			static std::string QuoteWindowsArgument(const std::string& argument);
+
+			/**
 			 * @brief Full command line as wide string.
 			 * @return Command line.
 			 */

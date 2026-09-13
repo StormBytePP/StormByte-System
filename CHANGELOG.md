@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reconnecting a process output now joins the previous forwarder before replacing it.
 - Process waiting now cancels forwarding before reaping and joining, avoiding downstream backpressure deadlocks.
 - UNIX process startup now reports `execvp` failures to the parent and throws the appropriate exception eagerly.
+- Windows process startup now quotes command-line arguments and distinguishes missing executables from other creation failures.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]

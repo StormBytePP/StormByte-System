@@ -307,7 +307,10 @@ void Process::Run() {
 		m_pstdin->CloseRead();
 	} else {
 		m_status = Status::TERMINATED;
-		throw ExecutableNotFound(m_program);
+		const DWORD error = GetLastError();
+		if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
+			throw ExecutableNotFound(m_program);
+		throw ProcessCreationError("CreateProcessW failed with error " + std::to_string(error));
 	}
 #endif
 }
@@ -487,6 +490,25 @@ void Process::Resume() {
 	m_status = Status::RUNNING;
 }
 #ifdef WINDOWS
+std::string Process::QuoteWindowsArgument(const std::string& argument) {
+	std::string quoted = "\"";
+	size_t backslashes = 0;
+	for (const char character: argument) {
+		if (character == '\\') {
+			++backslashes;
+			continue;
+		}
+		if (character == '"')
+			quoted.append(backslashes * 2 + 1, '\\');
+		else
+			quoted.append(backslashes, '\\');
+		quoted += character;
+		backslashes = 0;
+	}
+	quoted.append(backslashes * 2, '\\');
+	quoted += '"';
+	return quoted;
+}
 std::wstring Process::FullCommand() const {
 	std::stringstream ss;
 	std::vector<std::string> full = { m_program.string() };
@@ -494,7 +516,7 @@ std::wstring Process::FullCommand() const {
 	for (size_t i = 0; i < full.size(); ++i) {
 		if (i)
 			ss << ' ';
-		ss << full[i];
+		ss << QuoteWindowsArgument(full[i]);
 	}
 	const std::string narrow = ss.str();
 	int wchars_num = MultiByteToWideChar(CP_UTF8, 0, narrow.c_str(), -1, NULL, 0);
