@@ -93,6 +93,14 @@ void Process::JoinForwarder() noexcept {
 	}
 	m_implementation->m_forwarder.reset();
 }
+void Process::StopForwarder(bool close_source_read) noexcept {
+	if (!m_implementation || !m_implementation->m_forwarder)
+		return;
+	m_implementation->m_forwarder_cancel->store(true);
+	JoinForwarder();
+	if (close_source_read)
+		m_implementation->m_pstdout->CloseRead();
+}
 Process::Process(Process&& proc) noexcept:
 	m_implementation(std::move(proc.m_implementation)) {}
 Process& Process::operator=(Process&& proc) noexcept {
@@ -118,9 +126,7 @@ Process& Process::operator>>(Process& exe) {
 	if (!m_implementation || !exe.m_implementation)
 		return exe;
 	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable()) {
-		m_implementation->m_forwarder_cancel->store(true);
-		m_implementation->m_pstdout->CloseRead();
-		JoinForwarder();
+		StopForwarder(false);
 	}
 	m_implementation->m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
 	#ifdef UNIX
@@ -312,8 +318,7 @@ int Process::Wait() noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
 		return -1;
 	if (m_implementation->m_forwarder) {
-		m_implementation->m_forwarder_cancel->store(true);
-		m_implementation->m_pstdout->CloseRead();
+		StopForwarder(true);
 	}
 	int status = 0;
 	pid_t result;
@@ -348,16 +353,13 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 			m_implementation->m_status = Status::TERMINATED;
 			m_implementation->m_pid = -1;
 			if (m_implementation->m_forwarder) {
-				m_implementation->m_forwarder_cancel->store(true);
-				m_implementation->m_pstdout->CloseRead();
-				JoinForwarder();
+				StopForwarder(true);
 			}
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
 		if (result == -1 || std::chrono::steady_clock::now() >= deadline) {
 			if (m_implementation->m_forwarder) {
-				m_implementation->m_forwarder_cancel->store(true);
-				m_implementation->m_pstdout->CloseRead();
+				StopForwarder(true);
 			}
 			return -1;
 		}
@@ -374,8 +376,7 @@ DWORD Process::Wait() noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
 	if (m_implementation->m_forwarder) {
-		m_implementation->m_forwarder_cancel->store(true);
-		m_implementation->m_pstdout->CloseRead();
+		StopForwarder(true);
 	}
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
@@ -383,6 +384,8 @@ DWORD Process::Wait() noexcept {
 		CloseHandle(m_implementation->m_piProcInfo.hThread);
 		ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 		m_implementation->m_status = Status::TERMINATED;
+		if (m_implementation->m_forwarder)
+			JoinForwarder();
 		return static_cast<DWORD>(-1);
 	}
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
@@ -390,6 +393,8 @@ DWORD Process::Wait() noexcept {
 		CloseHandle(m_implementation->m_piProcInfo.hThread);
 		ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 		m_implementation->m_status = Status::TERMINATED;
+		if (m_implementation->m_forwarder)
+			JoinForwarder();
 		return static_cast<DWORD>(-1);
 	}
 	CloseHandle(m_implementation->m_piProcInfo.hProcess);
@@ -408,15 +413,12 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 	const DWORD wait_result = WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, static_cast<DWORD>(count));
 	if (wait_result != WAIT_OBJECT_0) {
 		if (m_implementation->m_forwarder) {
-			m_implementation->m_forwarder_cancel->store(true);
-			m_implementation->m_pstdout->CloseRead();
+			StopForwarder(true);
 		}
 		return static_cast<DWORD>(-1);
 	}
 	if (m_implementation->m_forwarder) {
-		m_implementation->m_forwarder_cancel->store(true);
-		m_implementation->m_pstdout->CloseRead();
-		JoinForwarder();
+		StopForwarder(true);
 	}
 	DWORD exitCode = 0;
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {

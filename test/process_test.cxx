@@ -90,12 +90,17 @@ int test_pipeline_destination_exits_first() {
 	RETURN_TEST("test_pipeline_destination_exits_first", 0);
 }
 int test_pipeline_reconnect() {
-	std::vector<std::string> args = { "%s", "first\nsecond\n" };
-	StormByte::System::Process producer("/usr/bin/printf", args);
+	StormByte::System::Process producer("/bin/cat");
 	StormByte::System::Process first_consumer("/bin/cat");
 	StormByte::System::Process second_consumer("/bin/cat");
 	producer >> first_consumer;
+	producer << "before\n";
 	producer >> second_consumer;
+	producer << "after\n";
+	producer << StormByte::System::EoF;
+	std::string output;
+	second_consumer >> output;
+	ASSERT_TRUE("test_pipeline_reconnect", output.ends_with("after\n"));
 	producer.Wait();
 	first_consumer.Wait();
 	second_consumer.Wait();
@@ -214,8 +219,10 @@ int test_missing_executable() {
 int test_variable_expansion() {
 	ASSERT_EQUAL("test_variable_expansion", "foo~bar", StormByte::System::Variable::Expand("foo~bar"));
 	const char* home = std::getenv("HOME");
-	if (home != nullptr && *home != '\0')
+	if (home != nullptr && *home != '\0') {
+		ASSERT_EQUAL("test_variable_expansion", std::string(home), StormByte::System::Variable::Expand("~"));
 		ASSERT_EQUAL("test_variable_expansion", std::string(home) + "/a", StormByte::System::Variable::Expand("~/a"));
+	}
 	RETURN_TEST("test_variable_expansion", 0);
 }
 int test_wait_timeout() {
@@ -234,6 +241,11 @@ int test_wait_with_undrained_pipeline() {
 	(void)producer.Wait();
 	(void)consumer.Wait();
 	RETURN_TEST("test_wait_with_undrained_pipeline", 0);
+}
+int test_signaled_process() {
+	StormByte::System::Process proc("/bin/sh", { "-c", "kill -TERM $$" });
+	ASSERT_EQUAL("test_signaled_process", -1, proc.Wait());
+	RETURN_TEST("test_signaled_process", 0);
 }
 int test_move_process() {
 	std::vector<std::string> args = { "moved" };
@@ -365,6 +377,7 @@ int main() {
 	result += test_variable_expansion();
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
+	result += test_signaled_process();
 	result += test_move_process();
 	result += test_move_assignment();
 	result += test_tr_pipeline();

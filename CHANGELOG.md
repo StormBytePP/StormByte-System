@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Lifecycle joins now handle unexpected thread errors without allowing exceptions to escape `noexcept` cleanup paths.
 - Pipe binding, direct writes, interrupted waits, and Windows wait failures now preserve error and ownership semantics.
 - Pipeline forwarding cancellation now wakes its read loop without relying on cross-thread descriptor closure.
+- Expanded process, pipeline, signal-termination, and home-path regression coverage.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]

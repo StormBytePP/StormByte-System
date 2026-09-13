@@ -110,6 +110,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Wait for the process to exit up to @p timeout.
 			 * @param timeout Maximum wait duration.
+			 * @note On timeout, an active output forwarder is cancelled.
 			 * @return Exit code, or -1 on timeout, failure, or already reaped.
 			 */
 			int Wait(std::chrono::milliseconds timeout) noexcept;
@@ -130,6 +131,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Wait for the process to exit up to @p timeout.
 			 * @param timeout Maximum wait duration.
+			 * @note On timeout, an active output forwarder is cancelled.
 			 * @return Exit code, or (DWORD)-1 on timeout, failure, or already reaped.
 			 */
 			DWORD Wait(std::chrono::milliseconds timeout) noexcept;
@@ -236,6 +238,12 @@ namespace StormByte::System {
 			 * @brief Join the forwarder without allowing exceptions to escape lifecycle methods.
 			 */
 			void JoinForwarder() noexcept;
+
+			/**
+			 * @brief Stop forwarding and optionally close the producer output read end.
+			 * @param close_source_read Whether to close the local stdout read end.
+			 */
+			void StopForwarder(bool close_source_read) noexcept;
 
 			std::unique_ptr<ProcessImplementation> m_implementation;
 	};
