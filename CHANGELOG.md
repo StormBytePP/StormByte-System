@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Process pipeline internals**
     - Moved forwarding into the internal `Pipe` abstraction while preserving buffered and future output.
     - Moved Process state into the private process implementation header, reducing public-header ABI exposure.
+- **Dependencies and build configuration**
+    - Updated the StormByte/base dependency to 1.1.0.
+    - Switched Windows release optimization handling to CMake interprocedural optimization without duplicate manual compiler/linker flags.
 
 ### Fixed
 
