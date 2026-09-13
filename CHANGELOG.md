@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved Process implementation state into the private process implementation header, reducing public-header ABI exposure.
 - Lifecycle joins now handle unexpected thread errors without allowing exceptions to escape `noexcept` cleanup paths.
 - Pipe binding, direct writes, interrupted waits, and Windows wait failures now preserve error and ownership semantics.
+- Pipeline forwarding cancellation now wakes its read loop without relying on cross-thread descriptor closure.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]

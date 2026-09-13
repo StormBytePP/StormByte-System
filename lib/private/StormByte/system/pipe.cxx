@@ -162,6 +162,21 @@ DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 }
 #endif
 #ifdef UNIX
+bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) const {
+	pollfd poll_data{ m_fd[0], POLLIN, 0 };
+	while (!cancelled || !cancelled->load()) {
+		int result;
+		do {
+			result = poll(&poll_data, 1, 10);
+		} while (result == -1 && errno == EINTR);
+		if (result > 0)
+			return (poll_data.revents & (POLLIN | POLLHUP)) != 0;
+		if (result == -1 && errno != EINTR)
+			return false;
+	}
+	return false;
+}
+
 bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
 	if (data.empty())
 		return true;
@@ -190,6 +205,18 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 	return out.empty();
 }
 #else
+bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) const {
+	DWORD available = 0;
+	while (!cancelled || !cancelled->load()) {
+		if (!PeekNamedPipe(m_fd[0], nullptr, 0, nullptr, &available, nullptr))
+			return GetLastError() == ERROR_BROKEN_PIPE;
+		if (available > 0)
+			return true;
+		Sleep(10);
+	}
+	return false;
+}
+
 bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
 	if (data.empty())
 		return true;
@@ -227,6 +254,8 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 		ssize_t bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
+			if (!source->WaitReadable(cancelled))
+				break;
 			bytes_read = source->Read(buffer, MAX_READ_BYTES);
 			if (bytes_read > 0)
 				forwarding = destination->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)), cancelled);
@@ -235,13 +264,15 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 			else if (errno != EINTR)
 				forwarding = false;
 		}
-		if (!forwarding && on_failure)
+		if (!forwarding && (!cancelled || !cancelled->load()) && on_failure)
 			on_failure();
 #else
 		std::vector<CHAR> buffer(MAX_READ_BYTES);
 		DWORD bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
+			if (!source->WaitReadable(cancelled))
+				break;
 			bytes_read = source->Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 			if (bytes_read > 0)
 				forwarding = destination->WriteAtomic(std::string(buffer.data(), bytes_read), cancelled);
@@ -250,7 +281,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 			else
 				break;
 		}
-		if (!forwarding && on_failure)
+		if (!forwarding && (!cancelled || !cancelled->load()) && on_failure)
 			on_failure();
 #endif
 		destination->CloseWrite();

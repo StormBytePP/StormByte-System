@@ -101,6 +101,17 @@ int test_pipeline_reconnect() {
 	second_consumer.Wait();
 	RETURN_TEST("test_pipeline_reconnect", 0);
 }
+int test_pipeline_reconnect_long_lived() {
+	StormByte::System::Process producer("/bin/sleep", { "1" });
+	StormByte::System::Process first_consumer("/bin/cat");
+	StormByte::System::Process second_consumer("/bin/cat");
+	producer >> first_consumer;
+	producer >> second_consumer;
+	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, producer.Wait());
+	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, first_consumer.Wait());
+	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, second_consumer.Wait());
+	RETURN_TEST("test_pipeline_reconnect_long_lived", 0);
+}
 int test_pipeline_sort() {
 	std::vector<std::string> args1 = { "%s", "banana\napple\ncherry\n" };
 	StormByte::System::Process proc1("/usr/bin/printf", args1);
@@ -341,6 +352,7 @@ int main() {
 	result += test_pipeline_accumulated_and_future_output();
 	result += test_pipeline_destination_exits_first();
 	result += test_pipeline_reconnect();
+	result += test_pipeline_reconnect_long_lived();
 	result += test_pipeline_sort();
 	result += test_pipeline_find_sort_wc();
 	result += test_pipeline_echo_sort_wc();

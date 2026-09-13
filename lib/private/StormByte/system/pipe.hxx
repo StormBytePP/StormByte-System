@@ -204,6 +204,13 @@ namespace StormByte::System {
 			static std::thread Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure = {});
 
 		private:
+			/**
+			 * @brief Wait until the read end is readable or cancellation is requested.
+			 * @param cancelled Optional cancellation state.
+			 * @return true when a read should be attempted.
+			 */
+			bool WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) const;
+
 			#ifdef WINDOWS
 			HANDLE m_fd[2];						///< Read / write handles
 			static SECURITY_ATTRIBUTES m_sAttr;	///< Inherit attributes
