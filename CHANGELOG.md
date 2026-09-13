@@ -7,29 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-13
+
 ### Changed
 
-- Ported System exception messages to the `StormByte::Component` format and added `ProcessCreationError` for process creation failures.
-- Moved process pipeline forwarding into the internal `Pipe` abstraction while preserving buffered and future output.
+- **Public process behavior**
+    - Ported System exception messages to the `StormByte::Component` format and added `ProcessCreationError` for process creation failures.
+    - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
+- **Process pipeline internals**
+    - Moved forwarding into the internal `Pipe` abstraction while preserving buffered and future output.
+    - Moved Process state into the private process implementation header, reducing public-header ABI exposure.
 
 ### Fixed
 
-- Pipe construction now checks platform errors and moved pipes invalidate their source endpoints.
-- Pipe reads, writes, polling and descriptor binding now distinguish interruption, EOF and failure.
-- Process pipeline forwarding now retains pipe ownership independently of process object lifetime.
-- Reconnecting a process output now joins the previous forwarder before replacing it.
-- Process waiting now cancels forwarding before reaping and joining, avoiding downstream backpressure deadlocks.
-- UNIX process startup now reports `execvp` failures to the parent and throws the appropriate exception eagerly.
-- Windows process startup now quotes command-line arguments and distinguishes missing executables from other creation failures.
-- Environment expansion now handles missing home directories safely, expands only leading `~` paths, and grows Windows buffers as needed.
-- Moved Process implementation state into the private process implementation header, reducing public-header ABI exposure.
-- Lifecycle joins now handle unexpected thread errors without allowing exceptions to escape `noexcept` cleanup paths.
-- Pipe binding, direct writes, interrupted waits, and Windows wait failures now preserve error and ownership semantics.
-- Pipeline forwarding cancellation now wakes its read loop without relying on cross-thread descriptor closure.
-- Expanded process, pipeline, signal-termination, and home-path regression coverage.
-- Fixed EOF handling after interrupted reads and added a regression for `waitpid` interrupted by signals.
-- Added regressions for writes after consumer exit and oversized Windows environment expansion.
-- Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
+- **Pipe and process lifecycle**
+    - Pipe construction now checks platform errors, normalizes UNIX descriptors, and moved pipes invalidate their source endpoints.
+    - Pipe reads, writes, polling, EOF handling, and descriptor binding now distinguish interruption, EOF, and failure.
+    - Process pipeline forwarding retains pipe ownership independently of Process lifetime, supports safe reconnection, and cancels without cross-thread descriptor closure.
+    - Process waiting no longer deadlocks on downstream backpressure; lifecycle joins handle unexpected thread errors without escaping `noexcept` cleanup paths.
+    - Direct writes, interrupted waits, and Windows wait failures now preserve error and ownership semantics.
+- **Process startup and platform handling**
+    - UNIX startup reports `execvp` failures to the parent and throws the appropriate exception eagerly.
+    - Windows startup quotes command-line arguments and distinguishes missing executables from other creation failures.
+    - Environment expansion handles missing home directories safely, expands only leading `~` paths, and grows Windows buffers as needed.
+- **Regression coverage**
+    - Added coverage for pipelines, process moves, signal termination, interrupted waits, descriptor reuse, consumer exit, direct write failures, and oversized Windows environment expansion.
 
 ## [Summary]
 
@@ -74,4 +76,6 @@ Initial public release of StormByte-System.
 - On UNIX, if the executable cannot be started, the child exits with status **127**; the parent does not throw from the child path.
 - `Wait()` has no timeout; it blocks until the process ends.
 
+[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.1.0
 [1.0.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.0.0
