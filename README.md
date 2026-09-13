@@ -65,7 +65,7 @@ cmake --install build
 
 | Dependency | Role |
 |------------|------|
-| StormByte (base) | Exceptions, visibility |
+| [StormByte (base) 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) | Exceptions, visibility |
 
 ## The rest of the suite
 
@@ -87,7 +87,7 @@ cmake --install build
 |------|------|
 | `Process` | Spawn and talk to a child |
 | `Variable` | Expand environment strings |
-| `Exception` / `FileIOError` / `ExecutableNotFound` | Errors |
+| `Exception` / `FileIOError` / `ExecutableNotFound` / `ProcessCreationError` | Errors |
 | `System::EoF` | Close process stdin |
 
 `Pipe` is private.

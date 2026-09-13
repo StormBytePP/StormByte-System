@@ -211,12 +211,6 @@ namespace StormByte::System {
 			void Run();
 
 			/**
-			 * @brief Consume stdout and forward to another process stdin.
-			 * @param exec Target process.
-			 */
-			void ConsumeAndForward(Process& exec);
-
-			/**
 			 * @brief Clear ownership so Wait/destructor are no-ops.
 			 */
 			void ReleaseOwnership() noexcept;

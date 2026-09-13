@@ -148,6 +148,28 @@ Pipe& Pipe::operator<<(const std::string& data) {
 	Write(data);
 	return *this;
 }
+std::thread Pipe::Connect(Pipe& destination, std::function<void()> on_failure) {
+	return std::thread([this, &destination, on_failure = std::move(on_failure)] {
+#ifdef UNIX
+		std::vector<char> buffer(MAX_READ_BYTES);
+		ssize_t bytes_read;
+		bool forwarding = true;
+		while (forwarding && (bytes_read = Read(buffer, MAX_READ_BYTES)) > 0)
+			forwarding = destination.WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
+		if (!forwarding && on_failure)
+			on_failure();
+#else
+		std::vector<CHAR> buffer(MAX_READ_BYTES);
+		DWORD bytes_read;
+		bool forwarding = true;
+		while (forwarding && (bytes_read = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES))) > 0)
+			forwarding = destination.WriteAtomic(std::string(buffer.data(), bytes_read));
+		if (!forwarding && on_failure)
+			on_failure();
+#endif
+		destination.CloseWrite();
+	});
+}
 std::string& Pipe::operator>>(std::string& out) const {
 	#ifdef UNIX
 	ssize_t bytes;

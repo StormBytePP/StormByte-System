@@ -58,6 +58,20 @@ int test_pipeline_execution() {
 	proc2.Wait();
 	RETURN_TEST("test_pipeline_execution", 0);
 }
+int test_pipeline_accumulated_and_future_output() {
+	StormByte::System::Process producer("/bin/cat");
+	StormByte::System::Process consumer("/bin/cat");
+	producer << "before\n";
+	producer >> consumer;
+	producer << "after\n";
+	producer << StormByte::System::EoF;
+	std::string output;
+	consumer >> output;
+	ASSERT_EQUAL("test_pipeline_accumulated_and_future_output", "before\nafter\n", output);
+	producer.Wait();
+	consumer.Wait();
+	RETURN_TEST("test_pipeline_accumulated_and_future_output", 0);
+}
 int test_pipeline_sort() {
 	std::vector<std::string> args1 = { "%s", "banana\napple\ncherry\n" };
 	StormByte::System::Process proc1("/usr/bin/printf", args1);
@@ -247,6 +261,7 @@ int main() {
 #ifdef UNIX
 	result += test_basic_execution();
 	result += test_pipeline_execution();
+	result += test_pipeline_accumulated_and_future_output();
 	result += test_pipeline_sort();
 	result += test_pipeline_find_sort_wc();
 	result += test_pipeline_echo_sort_wc();

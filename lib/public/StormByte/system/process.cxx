@@ -22,6 +22,8 @@
 #include <StormByte/system/process.hxx>
 #ifdef UNIX
 #include <sys/wait.h>
+#include <cerrno>
+#include <cstring>
 #include <signal.h>
 #include <cstdlib>
 #else
@@ -122,7 +124,15 @@ Process::~Process() noexcept {
 #endif
 }
 Process& Process::operator>>(Process& exe) {
-	ConsumeAndForward(exe);
+	m_forwarder = std::make_unique<std::thread>(m_pstdout->Connect(*exe.m_pstdin, [this] {
+#ifdef UNIX
+		if (m_pid > 0)
+			kill(m_pid, SIGTERM);
+#else
+		if (m_piProcInfo.hProcess != nullptr)
+			TerminateProcess(m_piProcInfo.hProcess, 0);
+#endif
+	}));
 	return exe;
 }
 std::string& Process::operator>>(std::string& data) const {
@@ -175,7 +185,8 @@ void Process::Run() {
 		m_pstderr->CloseWrite();
 	} else {
 		m_status = Status::TERMINATED;
-		throw ExecutableNotFound(m_program);
+		const int error = errno;
+		throw ProcessCreationError(std::strerror(error));
 	}
 #else
 	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
@@ -321,45 +332,6 @@ void Process::Resume() {
 	CloseHandle(hThreadSnap);
 #endif
 	m_status = Status::RUNNING;
-}
-void Process::ConsumeAndForward(Process& exec) {
-	m_forwarder = std::make_unique<std::thread>(
-		[this, &exec] {
-#ifdef UNIX
-			std::vector<char> buffer(Pipe::MAX_READ_BYTES);
-			ssize_t bytes_read;
-			bool chunks_written = true;
-			do {
-				bytes_read = m_pstdout->Read(buffer, Pipe::MAX_READ_BYTES);
-				if (bytes_read > 0)
-					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
-			} while (!m_pstdout->ReadEOF() && chunks_written);
-			exec.m_pstdin->CloseWrite();
-			if (!chunks_written) {
-				if (m_pid > 0)
-					kill(m_pid, SIGTERM);
-				while (!m_pstdout->ReadEOF()) {
-					std::vector<char> discard(Pipe::MAX_READ_BYTES);
-					m_pstdout->Read(discard, Pipe::MAX_READ_BYTES);
-				}
-			}
-#else
-			DWORD status;
-			std::vector<CHAR> buffer(Pipe::MAX_READ_BYTES);
-			DWORD bytes_read;
-			bool chunks_written = true;
-			do {
-				bytes_read = m_pstdout->Read(buffer, static_cast<DWORD>(Pipe::MAX_READ_BYTES));
-				if (bytes_read > 0)
-					chunks_written = exec.m_pstdin->WriteAtomic(std::string(buffer.data(), bytes_read));
-				status = WaitForSingleObject(m_piProcInfo.hProcess, 0);
-			} while (chunks_written && status == WAIT_TIMEOUT);
-			if (!chunks_written)
-				TerminateProcess(m_piProcInfo.hProcess, 0);
-			exec.m_pstdin->CloseWrite();
-#endif
-		}
-	);
 }
 #ifdef WINDOWS
 std::wstring Process::FullCommand() const {

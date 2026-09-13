@@ -21,7 +21,9 @@
 
 #include <StormByte/system/visibility.h>
 
+#include <functional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef WINDOWS
@@ -190,6 +192,14 @@ namespace StormByte::System {
 			 * @return Reference to @p str.
 			 */
 			std::string& operator>>(std::string& str) const;
+
+			/**
+			 * @brief Forward all current and future data to another pipe.
+			 * @param destination Destination pipe.
+			 * @param on_failure Called if the destination closes before forwarding completes.
+			 * @return Forwarding thread.
+			 */
+			std::thread Connect(Pipe& destination, std::function<void()> on_failure = {});
 
 		private:
 			#ifdef WINDOWS

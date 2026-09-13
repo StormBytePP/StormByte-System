@@ -5,9 +5,18 @@ All notable changes to **StormByte-System** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Ported System exception messages to the `StormByte::Component` format and added `ProcessCreationError` for process creation failures.
+- Moved process pipeline forwarding into the internal `Pipe` abstraction while preserving buffered and future output.
+
 ## [Summary]
 
 StormByte System is the C++26 process and environment layer of the StormByte suite.
+
+Dependency baseline: [StormByte (base) 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0).
 
 Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
 
