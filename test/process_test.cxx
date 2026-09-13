@@ -20,6 +20,7 @@
 #include <StormByte/system/process.hxx>
 #include <StormByte/test_handlers.h>
 #include <algorithm>
+#include <chrono>
 #include <cctype>
 #include <iostream>
 #include <sstream>
@@ -192,6 +193,14 @@ int test_exit_code_true() {
 	ASSERT_EQUAL("test_exit_code_true", 0, exit_code);
 	RETURN_TEST("test_exit_code_true", 0);
 }
+int test_wait_timeout() {
+	StormByte::System::Process proc("/bin/sleep", { "1" });
+	const int timeout_result = proc.Wait(std::chrono::milliseconds(10));
+	ASSERT_EQUAL("test_wait_timeout", -1, timeout_result);
+	const int exit_code = proc.Wait();
+	ASSERT_EQUAL("test_wait_timeout", 0, exit_code);
+	RETURN_TEST("test_wait_timeout", 0);
+}
 int test_move_process() {
 	std::vector<std::string> args = { "moved" };
 	StormByte::System::Process original("/bin/echo", args);
@@ -297,6 +306,7 @@ int main() {
 	result += test_stderr_capture();
 	result += test_exit_code_false();
 	result += test_exit_code_true();
+	result += test_wait_timeout();
 	result += test_move_process();
 	result += test_tr_pipeline();
 #elif defined(WINDOWS)

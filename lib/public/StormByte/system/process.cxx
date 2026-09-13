@@ -260,6 +260,27 @@ int Process::Wait() noexcept {
 		return WEXITSTATUS(status);
 	return -1;
 }
+int Process::Wait(std::chrono::milliseconds timeout) noexcept {
+	if (m_status == Status::TERMINATED || m_pid <= 0)
+		return -1;
+	const auto deadline = std::chrono::steady_clock::now() + timeout;
+	int status = 0;
+	while (true) {
+		const pid_t result = waitpid(m_pid, &status, WNOHANG);
+		if (result == m_pid) {
+			m_status = Status::TERMINATED;
+			m_pid = -1;
+			if (m_forwarder) {
+				m_forwarder->join();
+				m_forwarder.reset();
+			}
+			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+		}
+		if (result == -1 || std::chrono::steady_clock::now() >= deadline)
+			return -1;
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+}
 pid_t Process::Pid() noexcept {
 	return m_pid;
 }
@@ -280,6 +301,26 @@ DWORD Process::Wait() noexcept {
 		m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
+	CloseHandle(m_piProcInfo.hProcess);
+	CloseHandle(m_piProcInfo.hThread);
+	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
+	m_status = Status::TERMINATED;
+	return exitCode;
+}
+DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
+	if (m_status == Status::TERMINATED || m_piProcInfo.hProcess == nullptr)
+		return static_cast<DWORD>(-1);
+	const auto count = timeout.count() < 0 ? 0 : timeout.count();
+	const DWORD wait_result = WaitForSingleObject(m_piProcInfo.hProcess, static_cast<DWORD>(count));
+	if (wait_result != WAIT_OBJECT_0)
+		return static_cast<DWORD>(-1);
+	if (m_forwarder) {
+		m_forwarder->join();
+		m_forwarder.reset();
+	}
+	DWORD exitCode = 0;
+	if (!GetExitCodeProcess(m_piProcInfo.hProcess, &exitCode))
+		return static_cast<DWORD>(-1);
 	CloseHandle(m_piProcInfo.hProcess);
 	CloseHandle(m_piProcInfo.hThread);
 	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));

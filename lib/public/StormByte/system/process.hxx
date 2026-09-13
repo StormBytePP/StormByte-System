@@ -21,6 +21,7 @@
 
 #include <StormByte/system/visibility.h>
 
+#include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -106,6 +107,13 @@ namespace StormByte::System {
 			int Wait() noexcept;
 
 			/**
+			 * @brief Wait for the process to exit up to @p timeout.
+			 * @param timeout Maximum wait duration.
+			 * @return Exit code, or -1 on timeout, failure, or already reaped.
+			 */
+			int Wait(std::chrono::milliseconds timeout) noexcept;
+
+			/**
 			 * @brief Child PID.
 			 * @return PID, or -1 if not owning a process.
 			 */
@@ -116,6 +124,13 @@ namespace StormByte::System {
 			 * @return Exit code, or (DWORD)-1 on failure.
 			 */
 			DWORD Wait() noexcept;
+
+			/**
+			 * @brief Wait for the process to exit up to @p timeout.
+			 * @param timeout Maximum wait duration.
+			 * @return Exit code, or (DWORD)-1 on timeout, failure, or already reaped.
+			 */
+			DWORD Wait(std::chrono::milliseconds timeout) noexcept;
 
 			/**
 			 * @brief Windows PROCESS_INFORMATION.
