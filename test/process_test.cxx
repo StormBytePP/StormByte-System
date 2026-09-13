@@ -72,6 +72,19 @@ int test_pipeline_accumulated_and_future_output() {
 	consumer.Wait();
 	RETURN_TEST("test_pipeline_accumulated_and_future_output", 0);
 }
+int test_pipeline_destination_exits_first() {
+	StormByte::System::Process producer("/usr/bin/yes");
+	{
+		std::vector<std::string> args = { "-c", "1" };
+		StormByte::System::Process consumer("/usr/bin/head", args);
+		producer >> consumer;
+		std::string output;
+		consumer >> output;
+		ASSERT_EQUAL("test_pipeline_destination_exits_first", 1u, output.size());
+	}
+	producer.Wait();
+	RETURN_TEST("test_pipeline_destination_exits_first", 0);
+}
 int test_pipeline_sort() {
 	std::vector<std::string> args1 = { "%s", "banana\napple\ncherry\n" };
 	StormByte::System::Process proc1("/usr/bin/printf", args1);
@@ -262,6 +275,7 @@ int main() {
 	result += test_basic_execution();
 	result += test_pipeline_execution();
 	result += test_pipeline_accumulated_and_future_output();
+	result += test_pipeline_destination_exits_first();
 	result += test_pipeline_sort();
 	result += test_pipeline_find_sort_wc();
 	result += test_pipeline_echo_sort_wc();

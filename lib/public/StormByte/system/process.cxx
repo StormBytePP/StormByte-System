@@ -37,9 +37,9 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 #ifdef UNIX
 	m_pid(-1),
 #endif
-	m_pstdout(std::make_unique<Pipe>()),
-	m_pstdin(std::make_unique<Pipe>()),
-	m_pstderr(std::make_unique<Pipe>()),
+	m_pstdout(std::make_shared<Pipe>()),
+	m_pstdin(std::make_shared<Pipe>()),
+	m_pstderr(std::make_shared<Pipe>()),
 	m_program(prog),
 	m_arguments(args) {
 #ifdef WINDOWS
@@ -53,9 +53,9 @@ Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 #ifdef UNIX
 	m_pid(-1),
 #endif
-	m_pstdout(std::make_unique<Pipe>()),
-	m_pstdin(std::make_unique<Pipe>()),
-	m_pstderr(std::make_unique<Pipe>()),
+	m_pstdout(std::make_shared<Pipe>()),
+	m_pstdin(std::make_shared<Pipe>()),
+	m_pstderr(std::make_shared<Pipe>()),
 	m_program(std::move(prog)),
 	m_arguments(std::move(args)) {
 #ifdef WINDOWS
@@ -124,15 +124,19 @@ Process::~Process() noexcept {
 #endif
 }
 Process& Process::operator>>(Process& exe) {
-	m_forwarder = std::make_unique<std::thread>(m_pstdout->Connect(*exe.m_pstdin, [this] {
-#ifdef UNIX
-		if (m_pid > 0)
-			kill(m_pid, SIGTERM);
-#else
-		if (m_piProcInfo.hProcess != nullptr)
-			TerminateProcess(m_piProcInfo.hProcess, 0);
-#endif
+	#ifdef UNIX
+	const pid_t source_pid = m_pid;
+	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, [source_pid] {
+		if (source_pid > 0)
+			kill(source_pid, SIGTERM);
 	}));
+	#else
+	const HANDLE source_process = m_piProcInfo.hProcess;
+	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, [source_process] {
+		if (source_process != nullptr)
+			TerminateProcess(source_process, 0);
+	}));
+	#endif
 	return exe;
 }
 std::string& Process::operator>>(std::string& data) const {

@@ -22,6 +22,7 @@
 #include <StormByte/system/visibility.h>
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
@@ -199,7 +200,7 @@ namespace StormByte::System {
 			 * @param on_failure Called if the destination closes before forwarding completes.
 			 * @return Forwarding thread.
 			 */
-			std::thread Connect(Pipe& destination, std::function<void()> on_failure = {});
+			static std::thread Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, std::function<void()> on_failure = {});
 
 		private:
 			#ifdef WINDOWS

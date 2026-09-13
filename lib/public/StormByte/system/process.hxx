@@ -191,9 +191,9 @@ namespace StormByte::System {
 			STARTUPINFOW m_siStartInfo;							///< Startup info
 			PROCESS_INFORMATION m_piProcInfo;					///< Process info
 			#endif
-			std::unique_ptr<Pipe> m_pstdout;					///< stdout pipe
-			std::unique_ptr<Pipe> m_pstdin;						///< stdin pipe
-			std::unique_ptr<Pipe> m_pstderr;					///< stderr pipe
+			std::shared_ptr<Pipe> m_pstdout;					///< stdout pipe
+			std::shared_ptr<Pipe> m_pstdin;					///< stdin pipe
+			std::shared_ptr<Pipe> m_pstderr;					///< stderr pipe
 			std::filesystem::path m_program;					///< Program path
 			std::vector<std::string> m_arguments;				///< Arguments
 			std::unique_ptr<std::thread> m_forwarder;			///< Forwarder thread

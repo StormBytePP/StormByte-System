@@ -206,16 +206,16 @@ Pipe& Pipe::operator<<(const std::string& data) {
 	Write(data);
 	return *this;
 }
-std::thread Pipe::Connect(Pipe& destination, std::function<void()> on_failure) {
-	return std::thread([this, &destination, on_failure = std::move(on_failure)] {
+std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, std::function<void()> on_failure) {
+	return std::thread([source = std::move(source), destination = std::move(destination), on_failure = std::move(on_failure)] {
 #ifdef UNIX
 		std::vector<char> buffer(MAX_READ_BYTES);
 		ssize_t bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
-			bytes_read = Read(buffer, MAX_READ_BYTES);
+			bytes_read = source->Read(buffer, MAX_READ_BYTES);
 			if (bytes_read > 0)
-				forwarding = destination.WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
+				forwarding = destination->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
 			else if (bytes_read == 0)
 				break;
 			else if (errno != EINTR)
@@ -228,9 +228,9 @@ std::thread Pipe::Connect(Pipe& destination, std::function<void()> on_failure) {
 		DWORD bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
-			bytes_read = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
+			bytes_read = source->Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination.WriteAtomic(std::string(buffer.data(), bytes_read));
+				forwarding = destination->WriteAtomic(std::string(buffer.data(), bytes_read));
 			else if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
 				forwarding = false;
 			else
@@ -239,7 +239,7 @@ std::thread Pipe::Connect(Pipe& destination, std::function<void()> on_failure) {
 		if (!forwarding && on_failure)
 			on_failure();
 #endif
-		destination.CloseWrite();
+		destination->CloseWrite();
 	});
 }
 std::string& Pipe::operator>>(std::string& out) const {
