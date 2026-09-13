@@ -21,6 +21,7 @@
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
 #ifdef UNIX
+#include <fcntl.h>
 #include <sys/wait.h>
 #include <cerrno>
 #include <cstring>
@@ -175,17 +176,54 @@ void Process::operator<<(const System::_EoF&) {
 }
 void Process::Run() {
 #ifdef UNIX
+	int exec_status[2] = { -1, -1 };
+#ifdef LINUX
+	if (pipe2(exec_status, O_CLOEXEC) == -1)
+		throw ProcessCreationError(std::strerror(errno));
+#else
+	if (pipe(exec_status) == -1 || fcntl(exec_status[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(exec_status[1], F_SETFD, FD_CLOEXEC) == -1) {
+		const int error = errno;
+		if (exec_status[0] != -1)
+			close(exec_status[0]);
+		if (exec_status[1] != -1)
+			close(exec_status[1]);
+		throw ProcessCreationError(std::strerror(error));
+	}
+#endif
 	m_pid = fork();
 	if (m_pid == 0) {
+		close(exec_status[0]);
+		auto report_exec_error = [&exec_status] {
+			const int error = errno;
+			const char* data = reinterpret_cast<const char*>(&error);
+			size_t remaining = sizeof(error);
+			while (remaining > 0) {
+				const ssize_t written = write(exec_status[1], data, remaining);
+				if (written > 0) {
+					data += written;
+					remaining -= static_cast<size_t>(written);
+				} else if (written < 0 && errno == EINTR) {
+					continue;
+				} else {
+					break;
+				}
+			}
+		};
 		m_pstdin->CloseWrite();
-		if (!m_pstdin->BindRead(STDIN_FILENO))
+		if (!m_pstdin->BindRead(STDIN_FILENO)) {
+			report_exec_error();
 			_exit(127);
+		}
 		m_pstdout->CloseRead();
-		if (!m_pstdout->BindWrite(STDOUT_FILENO))
+		if (!m_pstdout->BindWrite(STDOUT_FILENO)) {
+			report_exec_error();
 			_exit(127);
+		}
 		m_pstderr->CloseRead();
-		if (!m_pstderr->BindWrite(STDERR_FILENO))
+		if (!m_pstderr->BindWrite(STDERR_FILENO)) {
+			report_exec_error();
 			_exit(127);
+		}
 		std::vector<char*> argv;
 		argv.reserve(m_arguments.size() + 2);
 		argv.push_back(const_cast<char*>(m_program.c_str()));
@@ -193,13 +231,45 @@ void Process::Run() {
 			argv.push_back(m_arguments[i].data());
 		argv.push_back(nullptr);
 		execvp(m_program.c_str(), argv.data());
-		// Child must not throw across fork boundary
+		report_exec_error();
 		_exit(127);
 	} else if (m_pid > 0) {
+		close(exec_status[1]);
 		m_pstdin->CloseRead();
 		m_pstdout->CloseWrite();
 		m_pstderr->CloseWrite();
+		int child_error = 0;
+		char* data = reinterpret_cast<char*>(&child_error);
+		size_t remaining = sizeof(child_error);
+		while (remaining > 0) {
+			const ssize_t bytes_read = read(exec_status[0], data, remaining);
+			if (bytes_read > 0) {
+				data += bytes_read;
+				remaining -= static_cast<size_t>(bytes_read);
+			} else if (bytes_read < 0 && errno == EINTR) {
+				continue;
+			} else {
+				break;
+			}
+		}
+		close(exec_status[0]);
+		if (remaining == sizeof(child_error))
+			return;
+		if (remaining == 0) {
+			waitpid(m_pid, nullptr, 0);
+			m_status = Status::TERMINATED;
+			m_pid = -1;
+			if (child_error == ENOENT)
+				throw ExecutableNotFound(m_program);
+			throw ProcessCreationError(std::strerror(child_error));
+		}
+		waitpid(m_pid, nullptr, 0);
+		m_status = Status::TERMINATED;
+		m_pid = -1;
+		throw ProcessCreationError("Incomplete exec failure status");
 	} else {
+		close(exec_status[0]);
+		close(exec_status[1]);
 		m_status = Status::TERMINATED;
 		const int error = errno;
 		throw ProcessCreationError(std::strerror(error));

@@ -17,6 +17,7 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
+#include <StormByte/system/exception.hxx>
 #include <StormByte/system/process.hxx>
 #include <StormByte/test_handlers.h>
 #include <algorithm>
@@ -193,6 +194,10 @@ int test_exit_code_true() {
 	ASSERT_EQUAL("test_exit_code_true", 0, exit_code);
 	RETURN_TEST("test_exit_code_true", 0);
 }
+int test_missing_executable() {
+	ASSERT_THROWS("test_missing_executable", StormByte::System::Process("/no/such/stormbyte-executable"), StormByte::System::ExecutableNotFound);
+	RETURN_TEST("test_missing_executable", 0);
+}
 int test_wait_timeout() {
 	StormByte::System::Process proc("/bin/sleep", { "1" });
 	const int timeout_result = proc.Wait(std::chrono::milliseconds(10));
@@ -315,6 +320,7 @@ int main() {
 	result += test_stderr_capture();
 	result += test_exit_code_false();
 	result += test_exit_code_true();
+	result += test_missing_executable();
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
 	result += test_move_process();

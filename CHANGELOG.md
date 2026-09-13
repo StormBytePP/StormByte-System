@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Process pipeline forwarding now retains pipe ownership independently of process object lifetime.
 - Reconnecting a process output now joins the previous forwarder before replacing it.
 - Process waiting now cancels forwarding before reaping and joining, avoiding downstream backpressure deadlocks.
+- UNIX process startup now reports `execvp` failures to the parent and throws the appropriate exception eagerly.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]
