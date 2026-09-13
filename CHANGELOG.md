@@ -6,7 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-- Fixed Windows-only Process implementation initialization and made UNIX process tests resolve utilities through `PATH` for macOS portability.
 
 ## [1.1.0] - 2026-09-13
 
@@ -33,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Environment expansion handles missing home directories safely, expands only leading `~` paths, and grows Windows buffers as needed.
 - **Regression coverage**
     - Added coverage for pipelines, process moves, signal termination, interrupted waits, descriptor reuse, consumer exit, direct write failures, and oversized Windows environment expansion.
+- **CI portability**
+    - Fixed Windows-only Process implementation initialization.
+    - Made UNIX process tests resolve utilities through `PATH` for macOS portability.
 
 ## [Summary]
 
