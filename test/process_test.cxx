@@ -237,6 +237,17 @@ int test_move_process() {
 	ASSERT_EQUAL("test_move_process", 0, exit_code);
 	RETURN_TEST("test_move_process", 0);
 }
+int test_move_assignment() {
+	StormByte::System::Process source("/bin/echo", { "assigned" });
+	StormByte::System::Process destination("/bin/echo", { "discarded" });
+	destination = std::move(source);
+	(void)source.Wait();
+	std::string output;
+	destination >> output;
+	ASSERT_EQUAL("test_move_assignment", "assigned\n", output);
+	ASSERT_EQUAL("test_move_assignment", 0, destination.Wait());
+	RETURN_TEST("test_move_assignment", 0);
+}
 int test_tr_pipeline() {
 	std::vector<std::string> args1 = { "%s", "abc" };
 	std::vector<std::string> args2 = { "a-z", "A-Z" };
@@ -343,6 +354,7 @@ int main() {
 	result += test_wait_timeout();
 	result += test_wait_with_undrained_pipeline();
 	result += test_move_process();
+	result += test_move_assignment();
 	result += test_tr_pipeline();
 #elif defined(WINDOWS)
 	result += test_basic_execution_windows();

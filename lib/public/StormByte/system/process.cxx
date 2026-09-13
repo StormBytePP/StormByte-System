@@ -316,7 +316,11 @@ int Process::Wait() noexcept {
 		m_implementation->m_pstdout->CloseRead();
 	}
 	int status = 0;
-	if (waitpid(m_implementation->m_pid, &status, 0) == -1) {
+	pid_t result;
+	do {
+		result = waitpid(m_implementation->m_pid, &status, 0);
+	} while (result == -1 && errno == EINTR);
+	if (result == -1) {
 		m_implementation->m_status = Status::TERMINATED;
 		m_implementation->m_pid = -1;
 		if (m_implementation->m_forwarder) {
@@ -375,10 +379,16 @@ DWORD Process::Wait() noexcept {
 	}
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
+		CloseHandle(m_implementation->m_piProcInfo.hProcess);
+		CloseHandle(m_implementation->m_piProcInfo.hThread);
+		ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
+		CloseHandle(m_implementation->m_piProcInfo.hProcess);
+		CloseHandle(m_implementation->m_piProcInfo.hThread);
+		ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
@@ -409,8 +419,13 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 		JoinForwarder();
 	}
 	DWORD exitCode = 0;
-	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode))
+	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
+		CloseHandle(m_implementation->m_piProcInfo.hProcess);
+		CloseHandle(m_implementation->m_piProcInfo.hThread);
+		ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
+		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
+	}
 	CloseHandle(m_implementation->m_piProcInfo.hProcess);
 	CloseHandle(m_implementation->m_piProcInfo.hThread);
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));

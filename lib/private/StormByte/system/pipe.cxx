@@ -216,7 +216,8 @@ void Pipe::CloseWrite() noexcept {
 	Close(m_fd[1]);
 }
 Pipe& Pipe::operator<<(const std::string& data) {
-	Write(data);
+	if (!WriteAtomic(std::string(data)))
+		throw ProcessCreationError("Pipe write failed");
 	return *this;
 }
 std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
@@ -296,6 +297,10 @@ while (true) {
 bool Pipe::Bind(int& src, int dest) noexcept {
 	if (dup2(src, dest) == -1)
 		return false;
+	if (src == dest) {
+		src = -1;
+		return true;
+	}
 	close(src);
 	src = -1;
 	return true;
