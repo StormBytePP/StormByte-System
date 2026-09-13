@@ -90,7 +90,8 @@ Process::Process(Process&& proc) noexcept:
 	m_pstderr(std::move(proc.m_pstderr)),
 	m_program(std::move(proc.m_program)),
 	m_arguments(std::move(proc.m_arguments)),
-	m_forwarder(std::move(proc.m_forwarder)) {
+	m_forwarder(std::move(proc.m_forwarder)),
+	m_forwarder_cancel(std::move(proc.m_forwarder_cancel)) {
 	proc.ReleaseOwnership();
 }
 Process& Process::operator=(Process&& proc) noexcept {
@@ -109,6 +110,7 @@ Process& Process::operator=(Process&& proc) noexcept {
 		m_program = std::move(proc.m_program);
 		m_arguments = std::move(proc.m_arguments);
 		m_forwarder = std::move(proc.m_forwarder);
+		m_forwarder_cancel = std::move(proc.m_forwarder_cancel);
 		proc.ReleaseOwnership();
 	}
 	return *this;
@@ -125,18 +127,21 @@ Process::~Process() noexcept {
 }
 Process& Process::operator>>(Process& exe) {
 	if (m_forwarder && m_forwarder->joinable()) {
+		m_forwarder_cancel->store(true);
+		m_pstdout->CloseRead();
 		m_forwarder->join();
 		m_forwarder.reset();
 	}
+	m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
 	#ifdef UNIX
 	const pid_t source_pid = m_pid;
-	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, [source_pid] {
+	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, m_forwarder_cancel, [source_pid] {
 		if (source_pid > 0)
 			kill(source_pid, SIGTERM);
 	}));
 	#else
 	const HANDLE source_process = m_piProcInfo.hProcess;
-	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, [source_process] {
+	m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_pstdout, exe.m_pstdin, m_forwarder_cancel, [source_process] {
 		if (source_process != nullptr)
 			TerminateProcess(source_process, 0);
 	}));
@@ -245,17 +250,25 @@ int Process::Wait() noexcept {
 	if (m_status == Status::TERMINATED || m_pid <= 0)
 		return -1;
 	if (m_forwarder) {
-		m_forwarder->join();
-		m_forwarder.reset();
+		m_forwarder_cancel->store(true);
+		m_pstdout->CloseRead();
 	}
 	int status = 0;
 	if (waitpid(m_pid, &status, 0) == -1) {
 		m_status = Status::TERMINATED;
 		m_pid = -1;
+		if (m_forwarder) {
+			m_forwarder->join();
+			m_forwarder.reset();
+		}
 		return -1;
 	}
 	m_status = Status::TERMINATED;
 	m_pid = -1;
+	if (m_forwarder) {
+		m_forwarder->join();
+		m_forwarder.reset();
+	}
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
 	return -1;
@@ -271,13 +284,20 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 			m_status = Status::TERMINATED;
 			m_pid = -1;
 			if (m_forwarder) {
+				m_forwarder_cancel->store(true);
+				m_pstdout->CloseRead();
 				m_forwarder->join();
 				m_forwarder.reset();
 			}
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
-		if (result == -1 || std::chrono::steady_clock::now() >= deadline)
+		if (result == -1 || std::chrono::steady_clock::now() >= deadline) {
+			if (m_forwarder) {
+				m_forwarder_cancel->store(true);
+				m_pstdout->CloseRead();
+			}
 			return -1;
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
@@ -289,8 +309,8 @@ DWORD Process::Wait() noexcept {
 	if (m_status == Status::TERMINATED || m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
 	if (m_forwarder) {
-		m_forwarder->join();
-		m_forwarder.reset();
+		m_forwarder_cancel->store(true);
+		m_pstdout->CloseRead();
 	}
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
@@ -305,6 +325,10 @@ DWORD Process::Wait() noexcept {
 	CloseHandle(m_piProcInfo.hThread);
 	ZeroMemory(&m_piProcInfo, sizeof(PROCESS_INFORMATION));
 	m_status = Status::TERMINATED;
+	if (m_forwarder) {
+		m_forwarder->join();
+		m_forwarder.reset();
+	}
 	return exitCode;
 }
 DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
@@ -312,9 +336,16 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 		return static_cast<DWORD>(-1);
 	const auto count = timeout.count() < 0 ? 0 : timeout.count();
 	const DWORD wait_result = WaitForSingleObject(m_piProcInfo.hProcess, static_cast<DWORD>(count));
-	if (wait_result != WAIT_OBJECT_0)
+	if (wait_result != WAIT_OBJECT_0) {
+		if (m_forwarder) {
+			m_forwarder_cancel->store(true);
+			m_pstdout->CloseRead();
+		}
 		return static_cast<DWORD>(-1);
+	}
 	if (m_forwarder) {
+		m_forwarder_cancel->store(true);
+		m_pstdout->CloseRead();
 		m_forwarder->join();
 		m_forwarder.reset();
 	}

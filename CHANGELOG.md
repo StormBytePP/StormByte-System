@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pipe reads, writes, polling and descriptor binding now distinguish interruption, EOF and failure.
 - Process pipeline forwarding now retains pipe ownership independently of process object lifetime.
 - Reconnecting a process output now joins the previous forwarder before replacing it.
+- Process waiting now cancels forwarding before reaping and joining, avoiding downstream backpressure deadlocks.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]

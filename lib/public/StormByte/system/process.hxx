@@ -21,6 +21,7 @@
 
 #include <StormByte/system/visibility.h>
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -102,6 +103,7 @@ namespace StormByte::System {
 			#ifdef UNIX
 			/**
 			 * @brief Block until the process exits (no timeout).
+			 * @note If output is forwarded, this does not wait for downstream consumers to drain.
 			 * @return Exit code, or -1 on failure / already reaped.
 			 */
 			int Wait() noexcept;
@@ -121,6 +123,7 @@ namespace StormByte::System {
 			#else
 			/**
 			 * @brief Block until the process exits (no timeout).
+			 * @note If output is forwarded, this does not wait for downstream consumers to drain.
 			 * @return Exit code, or (DWORD)-1 on failure.
 			 */
 			DWORD Wait() noexcept;
@@ -212,6 +215,7 @@ namespace StormByte::System {
 			std::filesystem::path m_program;					///< Program path
 			std::vector<std::string> m_arguments;				///< Arguments
 			std::unique_ptr<std::thread> m_forwarder;			///< Forwarder thread
+			std::shared_ptr<std::atomic_bool> m_forwarder_cancel;			///< Forwarder cancellation state
 
 		private:
 			/**

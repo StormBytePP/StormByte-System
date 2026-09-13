@@ -162,12 +162,23 @@ DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 }
 #endif
 #ifdef UNIX
-bool Pipe::WriteAtomic(std::string&& data) {
+bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
 	if (data.empty())
 		return true;
 	std::string out = std::move(data);
 	do {
+		if (cancelled && cancelled->load())
+			return false;
 		const size_t chunk_size = (out.length() > static_cast<size_t>(PIPE_BUF)) ? static_cast<size_t>(PIPE_BUF) : out.length();
+		pollfd poll_data{ m_fd[1], POLLOUT, 0 };
+		int poll_result;
+		do {
+			poll_result = poll(&poll_data, 1, 10);
+		} while (poll_result == -1 && errno == EINTR);
+		if (poll_result == -1 || (poll_result > 0 && (poll_data.revents & (POLLERR | POLLHUP | POLLNVAL))))
+			return false;
+		if (poll_result == 0)
+			continue;
 		const ssize_t bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
 		if (bytes_written < 0 && errno == EINTR)
 			continue;
@@ -179,11 +190,13 @@ bool Pipe::WriteAtomic(std::string&& data) {
 	return out.empty();
 }
 #else
-bool Pipe::WriteAtomic(std::string&& data) {
+bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
 	if (data.empty())
 		return true;
 	std::string out = std::move(data);
 	do {
+		if (cancelled && cancelled->load())
+			return false;
 		const size_t chunk_size = (out.length() > 4096) ? 4096 : out.length();
 		DWORD dwWritten = 0;
 		SetLastError(ERROR_SUCCESS);
@@ -206,8 +219,8 @@ Pipe& Pipe::operator<<(const std::string& data) {
 	Write(data);
 	return *this;
 }
-std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, std::function<void()> on_failure) {
-	return std::thread([source = std::move(source), destination = std::move(destination), on_failure = std::move(on_failure)] {
+std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
+	return std::thread([source = std::move(source), destination = std::move(destination), cancelled, on_failure = std::move(on_failure)] {
 #ifdef UNIX
 		std::vector<char> buffer(MAX_READ_BYTES);
 		ssize_t bytes_read;
@@ -215,7 +228,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 		while (forwarding) {
 			bytes_read = source->Read(buffer, MAX_READ_BYTES);
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)));
+				forwarding = destination->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)), cancelled);
 			else if (bytes_read == 0)
 				break;
 			else if (errno != EINTR)
@@ -230,7 +243,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 		while (forwarding) {
 			bytes_read = source->Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(buffer.data(), bytes_read));
+				forwarding = destination->WriteAtomic(std::string(buffer.data(), bytes_read), cancelled);
 			else if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
 				forwarding = false;
 			else

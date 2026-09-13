@@ -21,6 +21,7 @@
 
 #include <StormByte/system/visibility.h>
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -168,7 +169,7 @@ namespace StormByte::System {
 			 * @param str Data (moved). Empty string succeeds immediately.
 			 * @return true if all data was written.
 			 */
-			bool WriteAtomic(std::string&& str);
+			bool WriteAtomic(std::string&& str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
 
 			/**
 			 * @brief Close the read end.
@@ -200,7 +201,7 @@ namespace StormByte::System {
 			 * @param on_failure Called if the destination closes before forwarding completes.
 			 * @return Forwarding thread.
 			 */
-			static std::thread Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, std::function<void()> on_failure = {});
+			static std::thread Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure = {});
 
 		private:
 			#ifdef WINDOWS
