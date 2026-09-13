@@ -133,6 +133,9 @@ auto tmp = StormByte::System::Variable::Expand("%TEMP%");
 
 - Construction starts the child immediately.
 - `Wait()` has no timeout.
+- On UNIX, System ignores `SIGPIPE` once process-wide so closed pipe peers report write failure instead of terminating the host process.
+- Windows `Suspend()` / `Resume()` operate on a snapshot of the child threads; a thread created during enumeration may not be affected.
+- Windows process stdio handles are made non-inheritable immediately after process creation; a small inheritance window exists during `CreateProcessW`.
 - Destructor waits if the process is still owned.
 - Move invalidates the source (PID / handles cleared).
 

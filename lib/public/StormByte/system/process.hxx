@@ -103,7 +103,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Block until the process exits (no timeout).
 			 * @note If output is forwarded, this does not wait for downstream consumers to drain.
-			 * @return Exit code, or -1 on failure / already reaped.
+			 * @return Exit code, or -1 on failure, signal termination, or already reaped.
 			 */
 			int Wait() noexcept;
 
@@ -136,7 +136,7 @@ namespace StormByte::System {
 
 			/**
 			 * @brief Windows PROCESS_INFORMATION.
-			 * @return Info (zeroed if moved-from).
+			 * @return Info (zeroed if moved-from). The returned handles remain owned by Process.
 			 */
 			PROCESS_INFORMATION Pid();
 			#endif
@@ -231,6 +231,11 @@ namespace StormByte::System {
 			 * @brief Clear ownership so Wait/destructor are no-ops.
 			 */
 			void ReleaseOwnership() noexcept;
+
+			/**
+			 * @brief Join the forwarder without allowing exceptions to escape lifecycle methods.
+			 */
+			void JoinForwarder() noexcept;
 
 			std::unique_ptr<ProcessImplementation> m_implementation;
 	};

@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows process startup now quotes command-line arguments and distinguishes missing executables from other creation failures.
 - Environment expansion now handles missing home directories safely, expands only leading `~` paths, and grows Windows buffers as needed.
 - Moved Process implementation state into the private process implementation header, reducing public-header ABI exposure.
+- Lifecycle joins now handle unexpected thread errors without allowing exceptions to escape `noexcept` cleanup paths.
 - Added a public timed `Wait(std::chrono::milliseconds)` overload; the existing untimed overload remains unchanged.
 
 ## [Summary]

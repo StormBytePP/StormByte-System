@@ -79,6 +79,20 @@ void Process::ReleaseOwnership() noexcept {
 	m_implementation->m_pstderr.reset();
 	m_implementation->m_forwarder.reset();
 }
+void Process::JoinForwarder() noexcept {
+	if (!m_implementation || !m_implementation->m_forwarder)
+		return;
+	try {
+		if (m_implementation->m_forwarder->joinable())
+			m_implementation->m_forwarder->join();
+	} catch (...) {
+		try {
+			if (m_implementation->m_forwarder->joinable())
+				m_implementation->m_forwarder->detach();
+		} catch (...) {}
+	}
+	m_implementation->m_forwarder.reset();
+}
 Process::Process(Process&& proc) noexcept:
 	m_implementation(std::move(proc.m_implementation)) {}
 Process& Process::operator=(Process&& proc) noexcept {
@@ -106,8 +120,7 @@ Process& Process::operator>>(Process& exe) {
 	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable()) {
 		m_implementation->m_forwarder_cancel->store(true);
 		m_implementation->m_pstdout->CloseRead();
-		m_implementation->m_forwarder->join();
-		m_implementation->m_forwarder.reset();
+		JoinForwarder();
 	}
 	m_implementation->m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
 	#ifdef UNIX
@@ -307,16 +320,14 @@ int Process::Wait() noexcept {
 		m_implementation->m_status = Status::TERMINATED;
 		m_implementation->m_pid = -1;
 		if (m_implementation->m_forwarder) {
-			m_implementation->m_forwarder->join();
-			m_implementation->m_forwarder.reset();
+			JoinForwarder();
 		}
 		return -1;
 	}
 	m_implementation->m_status = Status::TERMINATED;
 	m_implementation->m_pid = -1;
 	if (m_implementation->m_forwarder) {
-		m_implementation->m_forwarder->join();
-		m_implementation->m_forwarder.reset();
+		JoinForwarder();
 	}
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
@@ -335,8 +346,7 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 			if (m_implementation->m_forwarder) {
 				m_implementation->m_forwarder_cancel->store(true);
 				m_implementation->m_pstdout->CloseRead();
-				m_implementation->m_forwarder->join();
-				m_implementation->m_forwarder.reset();
+				JoinForwarder();
 			}
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
@@ -377,8 +387,7 @@ DWORD Process::Wait() noexcept {
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 	m_implementation->m_status = Status::TERMINATED;
 	if (m_implementation->m_forwarder) {
-		m_implementation->m_forwarder->join();
-		m_implementation->m_forwarder.reset();
+		JoinForwarder();
 	}
 	return exitCode;
 }
@@ -397,8 +406,7 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 	if (m_implementation->m_forwarder) {
 		m_implementation->m_forwarder_cancel->store(true);
 		m_implementation->m_pstdout->CloseRead();
-		m_implementation->m_forwarder->join();
-		m_implementation->m_forwarder.reset();
+		JoinForwarder();
 	}
 	DWORD exitCode = 0;
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode))
