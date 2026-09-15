@@ -1,11 +1,30 @@
 # Changelog
 
-All notable changes to **StormByte-System** will be documented in this file.
+All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Summary]
+
+StormByte System is the C++26 process and environment layer of the StormByte suite.
+
+It depends on [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia or Network.
+
+Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
+
+If you landed here from a release link and have not read the tree:
+
+- What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
+- License: GNU Lesser General Public License version 3 or later, [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE)
+
 ## [Unreleased]
+
+### Changed
+
+- Doxygen (`ENABLE_DOC`) resolves Base headers via `INCLUDE_PATH` and skips `thirdparty`. No dependency pin change.
+
+[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
 
 ## [1.1.0] - 2026-09-13
 
@@ -39,13 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Fixed Windows-only Process implementation initialization.
     - Made UNIX process tests resolve utilities through `PATH` for macOS portability.
 
-## [Summary]
-
-StormByte System is the C++26 process and environment layer of the StormByte suite.
-
-Dependency baseline: [StormByte (base) 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0).
-
-Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
+[1.1.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.1.0
 
 ## [1.0.0] - 2026-09-05
 
@@ -82,6 +95,4 @@ Initial public release of StormByte-System.
 - On UNIX, if the executable cannot be started, the child exits with status **127**; the parent does not throw from the child path.
 - `Wait()` has no timeout; it blocks until the process ends.
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
-[1.1.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.1.0
 [1.0.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.0.0
