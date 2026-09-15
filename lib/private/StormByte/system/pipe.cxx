@@ -67,10 +67,12 @@ Pipe::Pipe():
 				result = -1;
 				break;
 			}
+
 			close(fd);
 			fd = duplicate;
 	}
 	}
+
 	if (result == -1) {
 		const int error = errno;
 		CloseRead();
@@ -82,6 +84,7 @@ Pipe::Pipe():
 		throw ProcessCreationError("CreatePipe failed with error " + std::to_string(GetLastError()));
 	#endif
 }
+
 Pipe::Pipe(Pipe&& pipe) noexcept:
 #ifdef WINDOWS
 	m_fd{ pipe.m_fd[0], pipe.m_fd[1] } {
@@ -93,6 +96,7 @@ Pipe::Pipe(Pipe&& pipe) noexcept:
 	pipe.m_fd[1] = -1;
 #endif
 }
+
 Pipe& Pipe::operator=(Pipe&& pipe) noexcept {
 	if (this == &pipe)
 		return *this;
@@ -109,6 +113,7 @@ Pipe& Pipe::operator=(Pipe&& pipe) noexcept {
 #endif
 	return *this;
 }
+
 Pipe::~Pipe() noexcept {
 	CloseRead();
 	CloseWrite();
@@ -117,12 +122,15 @@ Pipe::~Pipe() noexcept {
 bool Pipe::BindRead(int dest) noexcept {
 	return Bind(m_fd[0], dest);
 }
+
 bool Pipe::BindWrite(int dest) noexcept {
 	return Bind(m_fd[1], dest);
 }
+
 ssize_t Pipe::Write(const std::string& data) {
 	return write(m_fd[1], data.c_str(), sizeof(char) * data.length());
 }
+
 bool Pipe::WriteEOF() const {
 	pollfd poll_data;
 	poll_data.fd = m_fd[1];
@@ -135,9 +143,11 @@ bool Pipe::WriteEOF() const {
 		return false;
 	return !((poll_data.revents & POLLOUT) == POLLOUT) || ((poll_data.revents & POLLERR) == POLLERR);
 }
+
 ssize_t Pipe::Read(std::vector<char>& buffer, ssize_t bytes) const {
 	return read(m_fd[0], buffer.data(), static_cast<size_t>(bytes));
 }
+
 bool Pipe::ReadEOF() const {
 	pollfd poll_data;
 	poll_data.fd = m_fd[0];
@@ -154,21 +164,26 @@ bool Pipe::ReadEOF() const {
 void Pipe::ReadHandleInformation(DWORD mask, DWORD flags) {
 	HandleInformation(m_fd[0], mask, flags);
 }
+
 void Pipe::WriteHandleInformation(DWORD mask, DWORD flags) {
 	HandleInformation(m_fd[1], mask, flags);
 }
+
 HANDLE Pipe::ReadHandle() const {
 	return m_fd[0];
 }
+
 HANDLE Pipe::WriteHandle() const {
 	return m_fd[1];
 }
+
 DWORD Pipe::Write(const std::string& data) {
 	DWORD dwWritten = 0;
 	SetLastError(ERROR_SUCCESS);
 	WriteFile(m_fd[1], data.c_str(), static_cast<DWORD>(sizeof(char) * data.length()), &dwWritten, NULL);
 	return dwWritten;
 }
+
 DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 	DWORD dwRead = 0;
 	SetLastError(ERROR_SUCCESS);
@@ -189,6 +204,7 @@ bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) cons
 		if (result == -1 && errno != EINTR)
 			return false;
 	}
+
 	return false;
 }
 
@@ -215,6 +231,7 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size) {
 			return false;
 		}
+
 		out.erase(0, chunk_size);
 	} while (!out.empty());
 	return out.empty();
@@ -229,6 +246,7 @@ bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) cons
 			return true;
 		Sleep(10);
 	}
+
 	return false;
 }
 
@@ -246,6 +264,7 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 			dwWritten != static_cast<DWORD>(chunk_size)) {
 			return false;
 		}
+
 		out.erase(0, chunk_size);
 	} while (!out.empty());
 	return out.empty();
@@ -254,14 +273,17 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 void Pipe::CloseRead() noexcept {
 	Close(m_fd[0]);
 }
+
 void Pipe::CloseWrite() noexcept {
 	Close(m_fd[1]);
 }
+
 Pipe& Pipe::operator<<(const std::string& data) {
 	if (!WriteAtomic(std::string(data)))
 		throw ProcessCreationError("Pipe write failed");
 	return *this;
 }
+
 std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
 	return std::thread([source = std::move(source), destination = std::move(destination), cancelled, on_failure = std::move(on_failure)] {
 #ifdef UNIX
@@ -279,6 +301,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 			else if (errno != EINTR)
 				forwarding = false;
 		}
+
 		if (!forwarding && (!cancelled || !cancelled->load()) && on_failure)
 			on_failure();
 #else
@@ -296,12 +319,14 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 			else
 				break;
 		}
+
 		if (!forwarding && (!cancelled || !cancelled->load()) && on_failure)
 			on_failure();
 #endif
 		destination->CloseWrite();
 	});
 }
+
 std::string& Pipe::operator>>(std::string& out) const {
 	#ifdef UNIX
 	ssize_t bytes;
@@ -331,6 +356,7 @@ while (true) {
 				throw ProcessCreationError(std::strerror(errno));
 #endif
 	}
+
 	return out;
 }
 #ifdef UNIX
@@ -342,10 +368,12 @@ bool Pipe::Bind(int& src, int dest) noexcept {
 		src = -1;
 		return true;
 	}
+
 	close(src);
 	src = -1;
 	return true;
 }
+
 void Pipe::Close(int& fd) noexcept {
 	if (fd == -1)
 		return;
@@ -359,6 +387,7 @@ void Pipe::Close(HANDLE& fd) noexcept {
 	CloseHandle(fd);
 	fd = INVALID_HANDLE_VALUE;
 }
+
 void Pipe::HandleInformation(HANDLE handle, DWORD mask, DWORD flags) {
 	SetHandleInformation(handle, mask, flags);
 }

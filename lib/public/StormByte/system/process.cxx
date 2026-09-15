@@ -52,6 +52,7 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 #endif
 	Run();
 }
+
 Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
@@ -69,6 +70,7 @@ Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 #endif
 	Run();
 }
+
 void Process::ReleaseOwnership() noexcept {
 	if (!m_implementation)
 		return;
@@ -84,6 +86,7 @@ void Process::ReleaseOwnership() noexcept {
 	m_implementation->m_pstderr.reset();
 	m_implementation->m_forwarder.reset();
 }
+
 void Process::JoinForwarder() noexcept {
 	if (!m_implementation || !m_implementation->m_forwarder)
 		return;
@@ -96,8 +99,10 @@ void Process::JoinForwarder() noexcept {
 				m_implementation->m_forwarder->detach();
 		} catch (...) {}
 	}
+
 	m_implementation->m_forwarder.reset();
 }
+
 void Process::StopForwarder(bool close_source_read) noexcept {
 	if (!m_implementation || !m_implementation->m_forwarder)
 		return;
@@ -106,15 +111,19 @@ void Process::StopForwarder(bool close_source_read) noexcept {
 	if (close_source_read)
 		m_implementation->m_pstdout->CloseRead();
 }
+
 Process::Process(Process&& proc) noexcept:
 	m_implementation(std::move(proc.m_implementation)) {}
+
 Process& Process::operator=(Process&& proc) noexcept {
 	if (this != &proc) {
 		Wait();
 		m_implementation = std::move(proc.m_implementation);
 	}
+
 	return *this;
 }
+
 Process::~Process() noexcept {
 	Wait();
 	if (!m_implementation)
@@ -127,12 +136,14 @@ Process::~Process() noexcept {
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
 }
+
 Process& Process::operator>>(Process& exe) {
 	if (!m_implementation || !exe.m_implementation)
 		return exe;
 	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable()) {
 		StopForwarder(false);
 	}
+
 	m_implementation->m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
 	#ifdef UNIX
 	const pid_t source_pid = m_implementation->m_pid;
@@ -149,31 +160,37 @@ Process& Process::operator>>(Process& exe) {
 	#endif
 	return exe;
 }
+
 std::string& Process::operator>>(std::string& data) const {
 	if (m_implementation && m_implementation->m_pstdout)
 		*m_implementation->m_pstdout >> data;
 	return data;
 }
+
 std::string& Process::Stderr(std::string& str) const {
 	if (m_implementation && m_implementation->m_pstderr)
 		*m_implementation->m_pstderr >> str;
 	return str;
 }
+
 std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe) {
 	std::string data;
 	if (exe.m_implementation && exe.m_implementation->m_pstdout)
 		*exe.m_implementation->m_pstdout >> data;
 	return os << data;
 }
+
 Process& Process::operator<<(const std::string& data) {
 	if (m_implementation && m_implementation->m_pstdin)
 		*m_implementation->m_pstdin << data;
 	return *this;
 }
+
 void Process::operator<<(const System::_EoF&) {
 	if (m_implementation && m_implementation->m_pstdin)
 		m_implementation->m_pstdin->CloseWrite();
 }
+
 void Process::Run() {
 #ifdef UNIX
 	int exec_status[2] = { -1, -1 };
@@ -214,16 +231,19 @@ void Process::Run() {
 			report_exec_error();
 			_exit(127);
 		}
+
 		m_implementation->m_pstdout->CloseRead();
 		if (!m_implementation->m_pstdout->BindWrite(STDOUT_FILENO)) {
 			report_exec_error();
 			_exit(127);
 		}
+
 		m_implementation->m_pstderr->CloseRead();
 		if (!m_implementation->m_pstderr->BindWrite(STDERR_FILENO)) {
 			report_exec_error();
 			_exit(127);
 		}
+
 		std::vector<char*> argv;
 		argv.reserve(m_implementation->m_arguments.size() + 2);
 		argv.push_back(const_cast<char*>(m_implementation->m_program.c_str()));
@@ -252,6 +272,7 @@ void Process::Run() {
 				break;
 			}
 		}
+
 		close(exec_status[0]);
 		if (remaining == sizeof(child_error))
 			return;
@@ -263,6 +284,7 @@ void Process::Run() {
 				throw ExecutableNotFound(m_implementation->m_program);
 			throw ProcessCreationError(std::strerror(child_error));
 		}
+
 		waitpid(m_implementation->m_pid, nullptr, 0);
 		m_implementation->m_status = Status::TERMINATED;
 		m_implementation->m_pid = -1;
@@ -314,6 +336,7 @@ void Process::Run() {
 	}
 #endif
 }
+
 void Process::Send(const std::string& str) {
 	if (m_implementation->m_pstdin)
 		*m_implementation->m_pstdin << str;
@@ -325,6 +348,7 @@ int Process::Wait() noexcept {
 	if (m_implementation->m_forwarder) {
 		StopForwarder(true);
 	}
+
 	int status = 0;
 	pid_t result;
 	do {
@@ -336,17 +360,21 @@ int Process::Wait() noexcept {
 		if (m_implementation->m_forwarder) {
 			JoinForwarder();
 		}
+
 		return -1;
 	}
+
 	m_implementation->m_status = Status::TERMINATED;
 	m_implementation->m_pid = -1;
 	if (m_implementation->m_forwarder) {
 		JoinForwarder();
 	}
+
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
 	return -1;
 }
+
 int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
 		return -1;
@@ -360,17 +388,22 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 			if (m_implementation->m_forwarder) {
 				StopForwarder(true);
 			}
+
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
+
 		if (result == -1 || std::chrono::steady_clock::now() >= deadline) {
 			if (m_implementation->m_forwarder) {
 				StopForwarder(true);
 			}
+
 			return -1;
 		}
+
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
+
 pid_t Process::Pid() noexcept {
 	if (!m_implementation)
 		return -1;
@@ -383,6 +416,7 @@ DWORD Process::Wait() noexcept {
 	if (m_implementation->m_forwarder) {
 		StopForwarder(true);
 	}
+
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
 		CloseHandle(m_implementation->m_piProcInfo.hProcess);
@@ -393,6 +427,7 @@ DWORD Process::Wait() noexcept {
 			JoinForwarder();
 		return static_cast<DWORD>(-1);
 	}
+
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
 		CloseHandle(m_implementation->m_piProcInfo.hProcess);
 		CloseHandle(m_implementation->m_piProcInfo.hThread);
@@ -402,6 +437,7 @@ DWORD Process::Wait() noexcept {
 			JoinForwarder();
 		return static_cast<DWORD>(-1);
 	}
+
 	CloseHandle(m_implementation->m_piProcInfo.hProcess);
 	CloseHandle(m_implementation->m_piProcInfo.hThread);
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
@@ -409,8 +445,10 @@ DWORD Process::Wait() noexcept {
 	if (m_implementation->m_forwarder) {
 		JoinForwarder();
 	}
+
 	return exitCode;
 }
+
 DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
 		return static_cast<DWORD>(-1);
@@ -420,11 +458,14 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 		if (m_implementation->m_forwarder) {
 			StopForwarder(true);
 		}
+
 		return static_cast<DWORD>(-1);
 	}
+
 	if (m_implementation->m_forwarder) {
 		StopForwarder(true);
 	}
+
 	DWORD exitCode = 0;
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
 		CloseHandle(m_implementation->m_piProcInfo.hProcess);
@@ -433,12 +474,14 @@ DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
 		m_implementation->m_status = Status::TERMINATED;
 		return static_cast<DWORD>(-1);
 	}
+
 	CloseHandle(m_implementation->m_piProcInfo.hProcess);
 	CloseHandle(m_implementation->m_piProcInfo.hThread);
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 	m_implementation->m_status = Status::TERMINATED;
 	return exitCode;
 }
+
 PROCESS_INFORMATION Process::Pid() {
 	if (!m_implementation)
 		return PROCESS_INFORMATION{};
@@ -470,10 +513,12 @@ void Process::Suspend() {
 			}
 		} while (Thread32Next(hThreadSnap, &te32));
 	}
+
 	CloseHandle(hThreadSnap);
 #endif
 	m_implementation->m_status = Status::SUSPENDED;
 }
+
 void Process::Resume() {
 	if (!m_implementation)
 		return;
@@ -499,6 +544,7 @@ void Process::Resume() {
 			}
 		} while (Thread32Next(hThreadSnap, &te32));
 	}
+
 	CloseHandle(hThreadSnap);
 #endif
 	m_implementation->m_status = Status::RUNNING;
@@ -512,6 +558,7 @@ std::string Process::QuoteWindowsArgument(const std::string& argument) {
 			++backslashes;
 			continue;
 		}
+
 		if (character == '"')
 			quoted.append(backslashes * 2 + 1, '\\');
 		else
@@ -519,10 +566,12 @@ std::string Process::QuoteWindowsArgument(const std::string& argument) {
 		quoted += character;
 		backslashes = 0;
 	}
+
 	quoted.append(backslashes * 2, '\\');
 	quoted += '"';
 	return quoted;
 }
+
 std::wstring Process::FullCommand() const {
 	std::stringstream ss;
 	std::vector<std::string> full = { m_implementation->m_program.string() };
@@ -540,18 +589,22 @@ std::wstring Process::FullCommand() const {
 				ss << full[i];
 				continue;
 			}
+
 			if (full[i] == "/c" || full[i] == "/k") {
 				ss << full[i];
 				command_text = true;
 				continue;
 			}
+
 			if (full[i] == "/d" || full[i] == "/s") {
 				ss << full[i];
 				continue;
 			}
 		}
+
 		ss << QuoteWindowsArgument(full[i]);
 	}
+
 	const std::string narrow = ss.str();
 	int wchars_num = MultiByteToWideChar(CP_UTF8, 0, narrow.c_str(), -1, NULL, 0);
 	std::unique_ptr<wchar_t[]> wstr_buff = std::make_unique<wchar_t[]>(static_cast<size_t>(wchars_num));
