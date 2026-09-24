@@ -1,15 +1,24 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Summary]
 
-StormByte System is the C++26 process, device and environment layer of the StormByte suite.
+StormByte System is the C++26 process, device and host layer of the StormByte suite.
 
-It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
 
-Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, classify the medium behind a path, and expand environment strings. POSIX and Windows stay behind one API. Process and Device report failures as `StormByte::Error::Fault` in their own domains; they do not throw.
+Spawn children with piped stdin/stdout/stderr, classify the medium behind a path, resolve directories and the current executable, inspect the machine, name the calling thread, and expand environment strings. POSIX and Windows stay behind one API. Failures are `StormByte::Error::Fault` in a per-type domain (`StormByte.System.*`). Nothing in this module throws. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts), not `std::string` by value.
+
+From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
 
 If you landed here from a release link and have not read the tree:
 
-- What this module is, how to build it, and examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
-- License: dual LGPL-3.0-or-later or commercial. See [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE) and [COPYING.LGPLv3](https://github.com/StormBytePP/StormByte-System/blob/master/COPYING.LGPLv3).
+- What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
+- License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE)
 
 ## [Unreleased]
 
@@ -23,6 +32,10 @@ If you landed here from a release link and have not read the tree:
     - Copyable; stores only the caller accessor as `StormByte::String::String`.
     - Probe is on-demand. `operator bool` is probe success, not permission.
     - Errors are `StormByte::System::Device::Error` in domain `StormByte.System.Device`, held as `StormByte::Error::Fault`.
+- **Directory**: current, home, temporary and current-executable directories. `bool` + out `String`; `LastError()` is TLS in this module.
+- **File**: `Temporary(prefix, suffix)` creates an empty file the caller unlinks; `CurrentExecutable` is the running image.
+- **Host**: name, architecture, CPU brand, OS, kernel, page size, physical/available memory, logical processors, process bitness.
+- **ThisThread**: `Sleep`; get/set thread name (`TooLong` if the platform limit is exceeded; the name is not truncated).
 - Dual license on original System sources: LGPL-3.0-or-later **or** commercial (`LICENSE` + `COPYING.LGPLv3`).
 - `STORMBYTE_SYSTEM_SHARED` CMake option (default ON) so a static Windows consumer does not see `dllimport`.
 
@@ -38,14 +51,14 @@ If you landed here from a release link and have not read the tree:
 - Public text across a DLL boundary uses `StormByte::String::String` / `CString`.
 - Depends on StormByte-String 1.0.0 (vendors Base 2.0.0).
 - Visibility macros follow Base/Logger (`EXPORTS` / `STORMBYTE_SYSTEM_SHARED` / static empty).
-- Windows Device probe links `iphlpapi` and `ws2_32`. macOS Device probe links IOKit and CoreFoundation.
+- Windows Device probe links `iphlpapi` and `ws2_32`. Host CPU name links `advapi32`. macOS Device probe links IOKit and CoreFoundation.
 
 ### Removed
 
 - **Breaking:** `StormByte/system/exception.hxx` (`Exception`, `FileIOError`, `ExecutableNotFound`, `ProcessCreationError`).
-- **Breaking:** `StormByte::System::Error` and `StormByte/system/error.hxx` (domain `StormByte.System`). Device and Process keep their own domains.
+- **Breaking:** `StormByte::System::Error` and `StormByte/system/error.hxx` (domain `StormByte.System`). Device, Process, Directory, File, Host and ThisThread keep their own domains.
 
-[2.0.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/2.0.0
+[2.0.0]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...2.0.0
 
 ## [1.1.0] - 2026-09-13
 

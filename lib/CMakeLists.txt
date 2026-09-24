@@ -27,8 +27,8 @@ if(MSVC)
 		$<$<CONFIG:Release>:/O2>
 		$<$<CONFIG:Debug>:/Od>
 	)
-	# No /LTCG /GL on link — breaks lld-link; use INTERPROCEDURAL_OPTIMIZATION instead
 	target_link_libraries(StormByte-System PRIVATE
+		advapi32
 		iphlpapi
 		ws2_32
 	)
