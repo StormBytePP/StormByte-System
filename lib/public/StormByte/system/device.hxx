@@ -80,6 +80,10 @@ namespace StormByte::System {
 	 *
 	 * @par Copy
 	 * Copyable, movable and assignable. Only @c m_path is owned.
+	 *
+	 * @par Derivation
+	 * Throughput and Window are virtual so another module can report its
+	 * own rates without System talking to sockets.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Device {
 		public:
@@ -209,7 +213,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Destructor.
 			 */
-			~Device() = default;
+			virtual ~Device() = default;
 
 			/** @} */
 
@@ -258,14 +262,18 @@ namespace StormByte::System {
 			/**
 			 * @brief Nominal sequential rates of the medium.
 			 * @return Throughput. Valid only when @c *this is true.
+			 *
+			 * A derived Device may replace this with its own rates.
 			 */
-			struct Throughput Throughput() const noexcept;
+			virtual struct Throughput Throughput() const noexcept;
 
 			/**
 			 * @brief Suggested read and write windows.
 			 * @return Window. Valid only when @c *this is true.
+			 *
+			 * A derived Device may replace this with its own windows.
 			 */
-			struct Window Window() const noexcept;
+			virtual struct Window Window() const noexcept;
 
 			/** @} */
 
