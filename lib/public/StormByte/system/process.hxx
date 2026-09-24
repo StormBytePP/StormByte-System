@@ -40,10 +40,11 @@
 
 #pragma once
 
+#pragma once
+
 #include <StormByte/cstring.hxx>
 #include <StormByte/error.hxx>
 #include <StormByte/string/string.hxx>
-#include <StormByte/system/error.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <chrono>

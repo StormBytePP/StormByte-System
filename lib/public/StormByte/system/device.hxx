@@ -44,7 +44,6 @@
 #include <StormByte/error.hxx>
 #include <StormByte/size.hxx>
 #include <StormByte/string/string.hxx>
-#include <StormByte/system/error.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <cstdint>

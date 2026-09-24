@@ -38,7 +38,6 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/system/exception.hxx>
 #include <StormByte/system/variable.hxx>
 
 #ifdef WINDOWS
@@ -98,12 +97,12 @@ StormByte::String::String Variable::ExpandEnvironmentVariable(std::string_view v
 StormByte::String::String Variable::ExpandEnvironmentVariable(std::wstring_view var) {
 	DWORD size = ::ExpandEnvironmentStringsW(var.data(), nullptr, 0);
 	if (size == 0)
-		throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
+		return StormByte::String::String(StormByte::String::WString(var));
 	std::vector<wchar_t> buffer(size);
 	while (true) {
 		const DWORD result = ::ExpandEnvironmentStringsW(var.data(), buffer.data(), static_cast<DWORD>(buffer.size()));
 		if (result == 0)
-			throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
+			return StormByte::String::String(StormByte::String::WString(var));
 		if (result <= buffer.size())
 			return StormByte::String::String(StormByte::String::WString(std::wstring_view(buffer.data(), result - 1)));
 		buffer.resize(result);

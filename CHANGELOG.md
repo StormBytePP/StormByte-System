@@ -24,23 +24,31 @@ If you landed here from a release link and have not read the tree:
 
 ### Added
 
-- **`Device`:** query object for the medium behind a filesystem accessor. Stores only a `StormByte::String::String` path. Construction does not throw and does not open a handle. `Kind`, `Access` (`Readable` / `Writable` bitmask), `Throughput` and `Window` are computed on each call and are valid only when the Device converts to `true`. `operator bool` means a successful probe, not read or write permission. Constructors take `String`, `std::string_view`, `std::wstring_view` and `std::filesystem::path`. Symlinks are followed; a dangling symlink is `StormByte::System::Device::Error::BrokenSymlink`. Special device nodes are never `Writable`. Suggested windows are `bps / 500` clamped to 16 KiB–1 MiB.
-- **`StormByte::System::Device::Error`:** `std::error_code` domain tag `StormByte.System.Device` with `StormByte::Error::Fault`.
-- **`StormByte::System::Process::Error`:** `std::error_code` domain tag `StormByte.System.Process` with `StormByte::Error::Fault`. Enumerators: `Success`, `ExecutableNotFound`, `CreationFailed`, `Permission`, `NotRunning`, `AlreadyExited`, `TimedOut`, `BrokenPipe`, `Canceled`.
-- `Process::operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`). Inspect `Fault()` for the reason when it is false.
-- `Process::Fault()` returns the last Process domain code. The held `std::error_code` is valid only when `Fault` converts to `true`.
-- Internal `Pipe` construction and I/O no longer throw. `operator bool` is true when both ends are open. `operator<<` returns whether the write completed.
+- **Device**: classify the medium behind a path (`Kind`, `Access` bitmask, nominal `Throughput`, suggested `Window`).
+    - Copyable; stores only the caller accessor as `StormByte::String::String`.
+    - Probe is on-demand. `operator bool` is probe success, not permission.
+    - Errors are `StormByte::System::Device::Error` in domain `StormByte.System.Device`, held as `StormByte::Error::Fault`.
+- Dual license on original System sources: LGPL-3.0-or-later **or** commercial (`LICENSE` + `COPYING.LGPLv3`).
+- `STORMBYTE_SYSTEM_SHARED` CMake option (default ON) so a static Windows consumer does not see `dllimport`.
 
 ### Changed
 
-- **License:** original System sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
-- Direct Base submodule replaced by [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer (`thirdparty/StormByte/string/src`). Base 2.0.0 or newer comes in through String.
-- **Breaking:** `Variable::Expand` returns `StormByte::String::String`. Public overloads take `std::string_view`, `StormByte::String::String` and `StormByte::CString` (Windows also `std::wstring_view`, `WString`, `WCString`). `std::string` / `std::wstring` by value or as the only public input are gone.
-- **Breaking:** `Process` arguments are `std::vector<StormByte::String::String>`. stdin `operator<<` takes `std::string_view`, `String` and `CString`. stdout/stderr can fill a caller `std::string&` or a `String&`.
-- **Breaking:** `Process` no longer throws. Construction, `Run`, `Wait`, stdin writes and spawn failures report `StormByte::System::Process::Error` through `Fault()`. Catching `ExecutableNotFound`, `ProcessCreationError` or any `StormByte::System::Exception` from `Process` is gone. Compare `proc.Fault().code()` with `make_error_code(StormByte::System::Process::Error::…)`.
-- **Breaking:** Device errors are `StormByte::System::Device::Error` (domain `StormByte.System.Device`), not a suite-level `DeviceError` / `System::Error` fold.
-- Pipe write operators (private) take `std::string_view` and return `bool`. Internal pipe and PIMPL buffers may still use `std::string` inside this module.
-- Doxygen (`ENABLE_DOC`) resolves dependency headers via `INCLUDE_PATH` and skips `thirdparty`.
+- **Breaking:** Process no longer throws. Spawn, wait and stdin failures are `StormByte::System::Process::Error` in domain `StormByte.System.Process`, held as `Fault()`.
+    - `operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`).
+    - Timed `Wait` sets `TimedOut` and leaves the child running. A second wait after a successful reap sets `AlreadyExited`.
+    - A failed stdin write sets `BrokenPipe`.
+- **Breaking:** `Variable::Expand` returns `StormByte::String::String`.
+- **Breaking:** Process constructor arguments are `std::vector<StormByte::String::String>`.
+- Pipe construction and I/O no longer throw. Invalid pipes convert to `false`.
+- Public text across a DLL boundary uses `StormByte::String::String` / `CString`.
+- Depends on StormByte-String 1.0.0 (vendors Base 2.0.0).
+- Visibility macros follow Base/Logger (`EXPORTS` / `STORMBYTE_SYSTEM_SHARED` / static empty).
+- Windows Device probe links `iphlpapi` and `ws2_32`. macOS Device probe links IOKit and CoreFoundation.
+
+### Removed
+
+- **Breaking:** `StormByte/system/exception.hxx` (`Exception`, `FileIOError`, `ExecutableNotFound`, `ProcessCreationError`).
+- **Breaking:** `StormByte::System::Error` and `StormByte/system/error.hxx` (domain `StormByte.System`). Device and Process keep their own domains.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
 
