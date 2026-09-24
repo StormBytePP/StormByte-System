@@ -126,8 +126,8 @@ namespace {
 		return kRate.front().rate;
 	}
 
-	constexpr Snapshot Ok(const Kind kind, const Access access) noexcept {
-		return { StormByte::Error::Fault{}, kind, access, RateOf(kind) };
+	Snapshot Ok(const Kind kind, const Access access) {
+		return { StormByte::Error::Fault{Device::Error::Success}, kind, access, RateOf(kind) };
 	}
 
 	Snapshot Fail(const enum Device::Error code) {
