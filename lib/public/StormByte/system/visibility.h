@@ -44,12 +44,18 @@
 
 #ifdef WINDOWS
 	#ifdef StormByte_System_EXPORTS
-		#define STORMBYTE_SYSTEM_PUBLIC	__declspec(dllexport)
-  	#else
-      	#define STORMBYTE_SYSTEM_PUBLIC	__declspec(dllimport)
-  	#endif
-  	#define STORMBYTE_SYSTEM_PRIVATE
+		#define STORMBYTE_SYSTEM_PUBLIC			__declspec(dllexport)
+		#define STORMBYTE_SYSTEM_INSTANTIATE	__declspec(dllexport)
+	#elifdef STORMBYTE_SYSTEM_SHARED
+		#define STORMBYTE_SYSTEM_PUBLIC			__declspec(dllimport)
+		#define STORMBYTE_SYSTEM_INSTANTIATE
+	#else
+		#define STORMBYTE_SYSTEM_PUBLIC
+		#define STORMBYTE_SYSTEM_INSTANTIATE
+	#endif
+	#define STORMBYTE_SYSTEM_PRIVATE
 #else
-    #define STORMBYTE_SYSTEM_PUBLIC		__attribute__ ((visibility ("default")))
-    #define STORMBYTE_SYSTEM_PRIVATE	__attribute__ ((visibility ("hidden")))
+	#define STORMBYTE_SYSTEM_PUBLIC				__attribute__((visibility("default")))
+	#define STORMBYTE_SYSTEM_PRIVATE			__attribute__((visibility("hidden")))
+	#define STORMBYTE_SYSTEM_INSTANTIATE
 #endif
