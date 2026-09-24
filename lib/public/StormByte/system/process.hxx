@@ -41,14 +41,18 @@
 #pragma once
 
 #include <StormByte/cstring.hxx>
+#include <StormByte/error.hxx>
 #include <StormByte/string/string.hxx>
+#include <StormByte/system/error.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 #ifdef WINDOWS
 #include <windows.h>
@@ -76,23 +80,56 @@ namespace StormByte::System {
 	 * @brief Runs an external program with piped stdin/stdout/stderr.
 	 *
 	 * Starts immediately on construction. Move-only.
-	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout/stderr, Suspend/Resume.
+	 * Construction does not throw. @c operator bool is true only while a
+	 * child is live (running or suspended). A finished, moved-from or
+	 * failed spawn is false. Inspect @ref Fault for the reason.
+	 *
+	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout/stderr,
+	 * Suspend/Resume.
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Process {
 		public:
+			/**
+			 * @enum Error
+			 * @brief Child-process enumerators.
+			 *
+			 * Domain tag `StormByte.System.Process`. Zero is success.
+			 */
+			enum class Error {
+				Success = 0,			///< No error
+				ExecutableNotFound,		///< The program path or name could not be resolved
+				CreationFailed,			///< The child could not be created (fork, pipe, CreateProcess)
+				Permission,				///< The caller may not create or signal this child
+				NotRunning,				///< There is no live child for this operation
+				AlreadyExited,			///< The child has already exited
+				TimedOut,				///< A timed wait expired
+				BrokenPipe,				///< stdin/stdout/stderr pipe is closed or unusable
+				Canceled				///< The operation was canceled
+			};
+
+			/**
+			 * @enum Status
+			 * @brief Process lifecycle.
+			 */
+			enum class Status: unsigned short {
+				RUNNING,	///< Running
+				SUSPENDED,	///< Suspended
+				TERMINATED	///< Finished / cleaned up
+			};
+
 			/**
 			 * @brief Construct and start.
 			 * @param prog Executable path or name.
 			 * @param args Argument list (not including argv[0]).
 			 */
-			Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args = {});
+			Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args = {}) noexcept;
 
 			/**
 			 * @brief Construct and start (moved).
 			 * @param prog Executable path or name (moved).
 			 * @param args Argument list (moved).
 			 */
-			Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args = {});
+			Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args = {}) noexcept;
 
 			Process(const Process& proc) = delete;
 
@@ -112,6 +149,18 @@ namespace StormByte::System {
 			 * @brief Destructor (waits if still owning a child, then frees pipes).
 			 */
 			virtual ~Process() noexcept;
+
+			/**
+			 * @brief Whether a child is live.
+			 * @return true if the status is running or suspended.
+			 */
+			explicit operator bool() const noexcept;
+
+			/**
+			 * @brief Last Process error.
+			 * @return Success, or a @ref Error code.
+			 */
+			StormByte::Error::Fault Fault() const noexcept;
 
 			#ifdef UNIX
 			/**
@@ -230,16 +279,6 @@ namespace StormByte::System {
 			 */
 			void operator<<(const System::_EoF& eof);
 
-			/**
-			 * @enum Status
-			 * @brief Process lifecycle.
-			 */
-			enum class Status: unsigned short {
-				RUNNING,	///< Running
-				SUSPENDED,	///< Suspended
-				TERMINATED	///< Finished / cleaned up
-			};
-
 		private:
 			#ifdef WINDOWS
 			/**
@@ -293,4 +332,64 @@ namespace StormByte::System {
 	 * @return ostream.
 	 */
 	STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
+}
+
+/**
+ * @brief Domain for @ref StormByte::System::Process::Error.
+ */
+template<>
+struct StormByte::Error::Domain<StormByte::System::Process::Error> {
+	static constexpr const char* Name = "StormByte.System.Process";	///< Stable category tag
+
+	/**
+	 * @brief Text for one Process enumerator.
+	 * @param e Enumerator.
+	 * @return Human-readable message.
+	 */
+	static std::string Message(StormByte::System::Process::Error e) {
+		switch (e) {
+			case StormByte::System::Process::Error::Success:
+				return "Success";
+			case StormByte::System::Process::Error::ExecutableNotFound:
+				return "Executable not found";
+			case StormByte::System::Process::Error::CreationFailed:
+				return "Process creation failed";
+			case StormByte::System::Process::Error::Permission:
+				return "Process permission denied";
+			case StormByte::System::Process::Error::NotRunning:
+				return "Process is not running";
+			case StormByte::System::Process::Error::AlreadyExited:
+				return "Process has already exited";
+			case StormByte::System::Process::Error::TimedOut:
+				return "Process wait timed out";
+			case StormByte::System::Process::Error::BrokenPipe:
+				return "Process pipe is broken";
+			case StormByte::System::Process::Error::Canceled:
+				return "Process operation canceled";
+		}
+		return "Unknown Process error";
+	}
+};
+
+namespace StormByte::System {
+	/**
+	 * @brief Category singleton for @ref Process::Error.
+	 * @return Process-wide Process category.
+	 */
+	STORMBYTE_SYSTEM_PUBLIC const StormByte::Error::Category<Process::Error>& process_category() noexcept;
+
+	/**
+	 * @brief Builds an `std::error_code` from @ref Process::Error.
+	 * @param e Enumerator.
+	 * @return Code in @ref process_category().
+	 */
+	STORMBYTE_SYSTEM_PUBLIC std::error_code make_error_code(Process::Error e) noexcept;
+}
+
+namespace std {
+	/**
+	 * @brief Marks @ref StormByte::System::Process::Error as an `std::error_code` enum.
+	 */
+	template<>
+	struct is_error_code_enum<StormByte::System::Process::Error>: true_type {};
 }

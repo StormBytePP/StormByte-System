@@ -57,19 +57,66 @@ namespace StormByte::System {
 	 */
 	class STORMBYTE_SYSTEM_PRIVATE ProcessImplementation {
 		public:
-			Process::Status m_status;
+			/**
+			 * @brief Lifecycle of the child.
+			 */
+			Process::Status m_status { Process::Status::TERMINATED };
+
+			/**
+			 * @brief Last Process error. Success until spawn or a later operation fails.
+			 */
+			StormByte::Error::Fault m_fault;
+
 #ifdef UNIX
-			pid_t m_pid;
+			/**
+			 * @brief Child PID. -1 if none is owned.
+			 */
+			pid_t m_pid { -1 };
 #else
-			STARTUPINFOW m_siStartInfo;
-			PROCESS_INFORMATION m_piProcInfo;
+			/**
+			 * @brief Windows startup information for CreateProcessW.
+			 */
+			STARTUPINFOW m_siStartInfo {};
+
+			/**
+			 * @brief Windows process and thread handles.
+			 */
+			PROCESS_INFORMATION m_piProcInfo {};
 #endif
+
+			/**
+			 * @brief Child stdout pipe.
+			 */
 			std::shared_ptr<Pipe> m_pstdout;
+
+			/**
+			 * @brief Child stdin pipe.
+			 */
 			std::shared_ptr<Pipe> m_pstdin;
+
+			/**
+			 * @brief Child stderr pipe.
+			 */
 			std::shared_ptr<Pipe> m_pstderr;
+
+			/**
+			 * @brief Executable path or name.
+			 */
 			std::filesystem::path m_program;
+
+			/**
+			 * @brief Narrow argument list used at spawn.
+			 */
 			std::vector<std::string> m_arguments;
+
+			/**
+			 * @brief Background stdout-to-stdin forwarder, if chained.
+			 */
 			std::unique_ptr<std::thread> m_forwarder;
+
+			/**
+			 * @brief Cancellation flag for the forwarder thread.
+			 */
 			std::shared_ptr<std::atomic_bool> m_forwarder_cancel;
 	};
 }

@@ -62,6 +62,7 @@ namespace StormByte::System {
 	 * @brief Cross-platform anonymous pipe for process IPC.
 	 *
 	 * UNIX: pipe(2)/pipe2. Windows: CreatePipe. Move-only.
+	 * Construction does not throw. @c operator bool is true when both ends are open.
 	 * @note On UNIX, SIGPIPE is ignored process-wide once (first Pipe construction).
 	 */
 	class STORMBYTE_SYSTEM_PRIVATE Pipe {
@@ -74,7 +75,7 @@ namespace StormByte::System {
 			/**
 			 * @brief Create a new pipe pair.
 			 */
-			Pipe();
+			Pipe() noexcept;
 
 			Pipe(const Pipe&) = delete;
 
@@ -94,6 +95,12 @@ namespace StormByte::System {
 			 * @brief Close both ends.
 			 */
 			~Pipe() noexcept;
+
+			/**
+			 * @brief Whether both ends are open.
+			 * @return true if the pipe is usable.
+			 */
+			explicit operator bool() const noexcept;
 
 			#ifdef UNIX
 			/**
@@ -197,9 +204,9 @@ namespace StormByte::System {
 			/**
 			 * @brief Write @p str via WriteAtomic.
 			 * @param str Data.
-			 * @return *this.
+			 * @return true if every byte was written.
 			 */
-			Pipe& operator<<(std::string_view str);
+			bool operator<<(std::string_view str);
 
 			/**
 			 * @brief Read until EOF into @p str.

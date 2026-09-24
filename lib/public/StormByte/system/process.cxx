@@ -38,21 +38,19 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/system/exception.hxx>
+#include <StormByte/error.txx>
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
 #include <StormByte/system/process/implementation.hxx>
 
 #ifdef UNIX
 #include <cerrno>
-#include <cstring>
 #include <cstdlib>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
 #else
 #include <cctype>
-#include <iterator>
 #include <sstream>
 #include <tlhelp32.h>
 #endif
@@ -68,14 +66,21 @@ namespace {
 		return out;
 	}
 
+	void Fail(ProcessImplementation& impl, const enum Process::Error code) {
+		impl.m_fault = StormByte::Error::Fault{make_error_code(code)};
+		impl.m_status = Process::Status::TERMINATED;
+#ifdef UNIX
+		impl.m_pid = -1;
+#endif
+	}
 }
 
-Process::Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args):
+Process::Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args) noexcept:
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
-	#ifdef UNIX
+#ifdef UNIX
 	m_implementation->m_pid = -1;
-	#endif
+#endif
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
@@ -85,15 +90,19 @@ Process::Process(const std::filesystem::path& prog, const std::vector<StormByte:
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
+	if (!*m_implementation->m_pstdout || !*m_implementation->m_pstdin || !*m_implementation->m_pstderr) {
+		Fail(*m_implementation, Process::Error::CreationFailed);
+		return;
+	}
 	Run();
 }
 
-Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args):
+Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args) noexcept:
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
-	#ifdef UNIX
+#ifdef UNIX
 	m_implementation->m_pid = -1;
-	#endif
+#endif
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
@@ -103,7 +112,24 @@ Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::St
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 #endif
+	if (!*m_implementation->m_pstdout || !*m_implementation->m_pstdin || !*m_implementation->m_pstderr) {
+		Fail(*m_implementation, Process::Error::CreationFailed);
+		return;
+	}
 	Run();
+}
+
+Process::operator bool() const noexcept {
+	if (!m_implementation)
+		return false;
+	return m_implementation->m_status == Status::RUNNING ||
+		m_implementation->m_status == Status::SUSPENDED;
+}
+
+StormByte::Error::Fault Process::Fault() const noexcept {
+	if (!m_implementation)
+		return StormByte::Error::Fault{make_error_code(Process::Error::NotRunning)};
+	return m_implementation->m_fault;
 }
 
 void Process::ReleaseOwnership() noexcept {
@@ -175,24 +201,23 @@ Process::~Process() noexcept {
 Process& Process::operator>>(Process& exe) {
 	if (!m_implementation || !exe.m_implementation)
 		return exe;
-	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable()) {
+	if (m_implementation->m_forwarder && m_implementation->m_forwarder->joinable())
 		StopForwarder(false);
-	}
 
 	m_implementation->m_forwarder_cancel = std::make_shared<std::atomic_bool>(false);
-	#ifdef UNIX
+#ifdef UNIX
 	const pid_t source_pid = m_implementation->m_pid;
 	m_implementation->m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_implementation->m_pstdout, exe.m_implementation->m_pstdin, m_implementation->m_forwarder_cancel, [source_pid] {
 		if (source_pid > 0)
 			kill(source_pid, SIGTERM);
 	}));
-	#else
+#else
 	const HANDLE source_process = m_implementation->m_piProcInfo.hProcess;
 	m_implementation->m_forwarder = std::make_unique<std::thread>(Pipe::Connect(m_implementation->m_pstdout, exe.m_implementation->m_pstdin, m_implementation->m_forwarder_cancel, [source_process] {
 		if (source_process != nullptr)
 			TerminateProcess(source_process, 0);
 	}));
-	#endif
+#endif
 	return exe;
 }
 
@@ -222,13 +247,6 @@ StormByte::String::String& Process::Stderr(StormByte::String::String& str) const
 	return str;
 }
 
-std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe) {
-	std::string data;
-	if (exe.m_implementation && exe.m_implementation->m_pstdout)
-		*exe.m_implementation->m_pstdout >> data;
-	return os << data;
-}
-
 Process& Process::operator<<(std::string_view data) {
 	Send(data);
 	return *this;
@@ -251,8 +269,12 @@ void Process::Run() {
 #ifdef UNIX
 	int exec_status[2] = { -1, -1 };
 #ifdef LINUX
-	if (pipe2(exec_status, O_CLOEXEC) == -1)
-		throw ProcessCreationError(std::strerror(errno));
+	if (pipe2(exec_status, O_CLOEXEC) == -1) {
+		Fail(*m_implementation, errno == EACCES || errno == EPERM
+			? Process::Error::Permission
+			: Process::Error::CreationFailed);
+		return;
+	}
 #else
 	if (pipe(exec_status) == -1 || fcntl(exec_status[0], F_SETFD, FD_CLOEXEC) == -1 || fcntl(exec_status[1], F_SETFD, FD_CLOEXEC) == -1) {
 		const int error = errno;
@@ -260,7 +282,10 @@ void Process::Run() {
 			close(exec_status[0]);
 		if (exec_status[1] != -1)
 			close(exec_status[1]);
-		throw ProcessCreationError(std::strerror(error));
+		Fail(*m_implementation, error == EACCES || error == EPERM
+			? Process::Error::Permission
+			: Process::Error::CreationFailed);
+		return;
 	}
 #endif
 	m_implementation->m_pid = fork();
@@ -334,23 +359,23 @@ void Process::Run() {
 			return;
 		if (remaining == 0) {
 			waitpid(m_implementation->m_pid, nullptr, 0);
-			m_implementation->m_status = Status::TERMINATED;
-			m_implementation->m_pid = -1;
 			if (child_error == ENOENT)
-				throw ExecutableNotFound(m_implementation->m_program);
-			throw ProcessCreationError(std::strerror(child_error));
+				Fail(*m_implementation, Process::Error::ExecutableNotFound);
+			else if (child_error == EACCES || child_error == EPERM)
+				Fail(*m_implementation, Process::Error::Permission);
+			else
+				Fail(*m_implementation, Process::Error::CreationFailed);
+			return;
 		}
 
 		waitpid(m_implementation->m_pid, nullptr, 0);
-		m_implementation->m_status = Status::TERMINATED;
-		m_implementation->m_pid = -1;
-		throw ProcessCreationError("Incomplete exec failure status");
+		Fail(*m_implementation, Process::Error::CreationFailed);
 	} else {
 		close(exec_status[0]);
 		close(exec_status[1]);
-		m_implementation->m_status = Status::TERMINATED;
-		const int error = errno;
-		throw ProcessCreationError(std::strerror(error));
+		Fail(*m_implementation, errno == EACCES || errno == EPERM
+			? Process::Error::Permission
+			: Process::Error::CreationFailed);
 	}
 #else
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
@@ -384,27 +409,36 @@ void Process::Run() {
 		m_implementation->m_pstderr->CloseWrite();
 		m_implementation->m_pstdin->CloseRead();
 	} else {
-		m_implementation->m_status = Status::TERMINATED;
 		const DWORD error = GetLastError();
 		if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
-			throw ExecutableNotFound(m_implementation->m_program);
-		throw ProcessCreationError("CreateProcessW failed with error " + std::to_string(error));
+			Fail(*m_implementation, Process::Error::ExecutableNotFound);
+		else if (error == ERROR_ACCESS_DENIED)
+			Fail(*m_implementation, Process::Error::Permission);
+		else
+			Fail(*m_implementation, Process::Error::CreationFailed);
 	}
 #endif
 }
 
 void Process::Send(std::string_view str) {
-	if (m_implementation && m_implementation->m_pstdin)
-		*m_implementation->m_pstdin << str;
+	if (!m_implementation || !m_implementation->m_pstdin) {
+		if (m_implementation)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::BrokenPipe)};
+		return;
+	}
+	if (!(*m_implementation->m_pstdin << str))
+		m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::BrokenPipe)};
 }
 
 #ifdef UNIX
 int Process::Wait() noexcept {
-	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0) {
+		if (m_implementation && m_implementation->m_status == Status::TERMINATED && !m_implementation->m_fault)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::AlreadyExited)};
 		return -1;
-	if (m_implementation->m_forwarder) {
-		StopForwarder(true);
 	}
+	if (m_implementation->m_forwarder)
+		StopForwarder(true);
 
 	int status = 0;
 	pid_t result;
@@ -414,18 +448,15 @@ int Process::Wait() noexcept {
 	if (result == -1) {
 		m_implementation->m_status = Status::TERMINATED;
 		m_implementation->m_pid = -1;
-		if (m_implementation->m_forwarder) {
+		if (m_implementation->m_forwarder)
 			JoinForwarder();
-		}
-
 		return -1;
 	}
 
 	m_implementation->m_status = Status::TERMINATED;
 	m_implementation->m_pid = -1;
-	if (m_implementation->m_forwarder) {
+	if (m_implementation->m_forwarder)
 		JoinForwarder();
-	}
 
 	if (WIFEXITED(status))
 		return WEXITSTATUS(status);
@@ -433,8 +464,11 @@ int Process::Wait() noexcept {
 }
 
 int Process::Wait(std::chrono::milliseconds timeout) noexcept {
-	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0) {
+		if (m_implementation && m_implementation->m_status == Status::TERMINATED && !m_implementation->m_fault)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::AlreadyExited)};
 		return -1;
+	}
 	const auto deadline = std::chrono::steady_clock::now() + timeout;
 	int status = 0;
 	while (true) {
@@ -442,18 +476,16 @@ int Process::Wait(std::chrono::milliseconds timeout) noexcept {
 		if (result == m_implementation->m_pid) {
 			m_implementation->m_status = Status::TERMINATED;
 			m_implementation->m_pid = -1;
-			if (m_implementation->m_forwarder) {
+			if (m_implementation->m_forwarder)
 				StopForwarder(true);
-			}
-
 			return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 		}
 
 		if (result == -1 || std::chrono::steady_clock::now() >= deadline) {
-			if (m_implementation->m_forwarder) {
+			if (std::chrono::steady_clock::now() >= deadline)
+				m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::TimedOut)};
+			if (m_implementation->m_forwarder)
 				StopForwarder(true);
-			}
-
 			return -1;
 		}
 
@@ -469,11 +501,13 @@ pid_t Process::Pid() noexcept {
 
 #else
 DWORD Process::Wait() noexcept {
-	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr) {
+		if (m_implementation && m_implementation->m_status == Status::TERMINATED && !m_implementation->m_fault)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::AlreadyExited)};
 		return static_cast<DWORD>(-1);
-	if (m_implementation->m_forwarder) {
-		StopForwarder(true);
 	}
+	if (m_implementation->m_forwarder)
+		StopForwarder(true);
 
 	DWORD exitCode = 0;
 	if (WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, INFINITE) == WAIT_FAILED) {
@@ -500,29 +534,30 @@ DWORD Process::Wait() noexcept {
 	CloseHandle(m_implementation->m_piProcInfo.hThread);
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
 	m_implementation->m_status = Status::TERMINATED;
-	if (m_implementation->m_forwarder) {
+	if (m_implementation->m_forwarder)
 		JoinForwarder();
-	}
 
 	return exitCode;
 }
 
 DWORD Process::Wait(std::chrono::milliseconds timeout) noexcept {
-	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
+	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr) {
+		if (m_implementation && m_implementation->m_status == Status::TERMINATED && !m_implementation->m_fault)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::AlreadyExited)};
 		return static_cast<DWORD>(-1);
+	}
 	const auto count = timeout.count() < 0 ? 0 : timeout.count();
 	const DWORD wait_result = WaitForSingleObject(m_implementation->m_piProcInfo.hProcess, static_cast<DWORD>(count));
 	if (wait_result != WAIT_OBJECT_0) {
-		if (m_implementation->m_forwarder) {
+		if (wait_result == WAIT_TIMEOUT)
+			m_implementation->m_fault = StormByte::Error::Fault{make_error_code(Process::Error::TimedOut)};
+		if (m_implementation->m_forwarder)
 			StopForwarder(true);
-		}
-
 		return static_cast<DWORD>(-1);
 	}
 
-	if (m_implementation->m_forwarder) {
+	if (m_implementation->m_forwarder)
 		StopForwarder(true);
-	}
 
 	DWORD exitCode = 0;
 	if (!GetExitCodeProcess(m_implementation->m_piProcInfo.hProcess, &exitCode)) {
@@ -548,7 +583,7 @@ PROCESS_INFORMATION Process::Pid() {
 
 #endif
 void Process::Suspend() {
-	if (!m_implementation)
+	if (!m_implementation || !*this)
 		return;
 #ifdef UNIX
 	if (m_implementation->m_pid > 0)
@@ -579,7 +614,7 @@ void Process::Suspend() {
 }
 
 void Process::Resume() {
-	if (!m_implementation)
+	if (!m_implementation || m_implementation->m_status != Status::SUSPENDED)
 		return;
 #ifdef UNIX
 	if (m_implementation->m_pid > 0)
@@ -672,3 +707,21 @@ std::wstring Process::FullCommand() const {
 	return std::wstring(wstr_buff.get());
 }
 #endif
+
+namespace StormByte::System {
+	std::ostream& operator<<(std::ostream& os, const Process& exe) {
+		std::string data;
+		if (exe.m_implementation && exe.m_implementation->m_pstdout)
+			*exe.m_implementation->m_pstdout >> data;
+		return os << data;
+	}
+
+	const StormByte::Error::Category<enum Process::Error>& process_category() noexcept {
+		static StormByte::Error::Category<enum Process::Error> instance;
+		return instance;
+	}
+
+	std::error_code make_error_code(const enum Process::Error e) noexcept {
+		return std::error_code(static_cast<int>(e), process_category());
+	}
+}

@@ -21,6 +21,20 @@ if(MSVC)
 		$<$<CONFIG:Debug>:/Od>
 	)
 	# No /LTCG /GL on link — breaks lld-link; use INTERPROCEDURAL_OPTIMIZATION instead
+	target_link_libraries(StormByte-System PRIVATE
+		iphlpapi
+		ws2_32
+	)
+elseif(APPLE)
+	target_compile_options(StormByte-System PRIVATE
+		-fvisibility=hidden
+		$<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>
+		$<$<CONFIG:Debug>:-pipe -g -ggdb -Wall -Wextra -Wnon-virtual-dtor -pedantic -pedantic-errors -O0>
+	)
+	target_link_libraries(StormByte-System PRIVATE
+		"-framework CoreFoundation"
+		"-framework IOKit"
+	)
 else()
 	target_compile_options(StormByte-System PRIVATE
 		-fvisibility=hidden

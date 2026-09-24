@@ -24,8 +24,12 @@ If you landed here from a release link and have not read the tree:
 
 ### Added
 
-- **`Device`:** query object for the medium behind a filesystem accessor. Stores only a `StormByte::String::String` path. Construction does not throw and does not open a handle. `Kind`, `Access` (`Readable` / `Writable` bitmask), `Throughput` and `Window` are computed on each call and are valid only when the Device converts to `true`. `operator bool` means a successful probe, not read or write permission. Constructors take `String`, `std::string_view`, `std::wstring_view` and `std::filesystem::path`. Symlinks are followed; a dangling symlink is `DeviceError::BrokenSymlink`. Special device nodes are never `Writable`. Suggested windows are `bps / 500` clamped to 16 KiB–1 MiB.
-- **`Error` / `DeviceError`:** `std::error_code` domains (`StormByte.System`, `StormByte.System.Device`) with `StormByte::Error::Fault`. Process still throws `Exception`; the two hierarchies are not mixed.
+- **`Device`:** query object for the medium behind a filesystem accessor. Stores only a `StormByte::String::String` path. Construction does not throw and does not open a handle. `Kind`, `Access` (`Readable` / `Writable` bitmask), `Throughput` and `Window` are computed on each call and are valid only when the Device converts to `true`. `operator bool` means a successful probe, not read or write permission. Constructors take `String`, `std::string_view`, `std::wstring_view` and `std::filesystem::path`. Symlinks are followed; a dangling symlink is `StormByte::System::Device::Error::BrokenSymlink`. Special device nodes are never `Writable`. Suggested windows are `bps / 500` clamped to 16 KiB–1 MiB.
+- **`StormByte::System::Device::Error`:** `std::error_code` domain tag `StormByte.System.Device` with `StormByte::Error::Fault`.
+- **`StormByte::System::Process::Error`:** `std::error_code` domain tag `StormByte.System.Process` with `StormByte::Error::Fault`. Enumerators: `Success`, `ExecutableNotFound`, `CreationFailed`, `Permission`, `NotRunning`, `AlreadyExited`, `TimedOut`, `BrokenPipe`, `Canceled`.
+- `Process::operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`). Inspect `Fault()` for the reason when it is false.
+- `Process::Fault()` returns the last Process domain code. The held `std::error_code` is valid only when `Fault` converts to `true`.
+- Internal `Pipe` construction and I/O no longer throw. `operator bool` is true when both ends are open. `operator<<` returns whether the write completed.
 
 ### Changed
 
@@ -33,7 +37,9 @@ If you landed here from a release link and have not read the tree:
 - Direct Base submodule replaced by [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer (`thirdparty/StormByte/string/src`). Base 2.0.0 or newer comes in through String.
 - **Breaking:** `Variable::Expand` returns `StormByte::String::String`. Public overloads take `std::string_view`, `StormByte::String::String` and `StormByte::CString` (Windows also `std::wstring_view`, `WString`, `WCString`). `std::string` / `std::wstring` by value or as the only public input are gone.
 - **Breaking:** `Process` arguments are `std::vector<StormByte::String::String>`. stdin `operator<<` takes `std::string_view`, `String` and `CString`. stdout/stderr can fill a caller `std::string&` or a `String&`.
-- Pipe write operators (private) take `std::string_view`. Internal pipe and PIMPL buffers may still use `std::string` inside this module.
+- **Breaking:** `Process` no longer throws. Construction, `Run`, `Wait`, stdin writes and spawn failures report `StormByte::System::Process::Error` through `Fault()`. Catching `ExecutableNotFound`, `ProcessCreationError` or any `StormByte::System::Exception` from `Process` is gone. Compare `proc.Fault().code()` with `make_error_code(StormByte::System::Process::Error::…)`.
+- **Breaking:** Device errors are `StormByte::System::Device::Error` (domain `StormByte.System.Device`), not a suite-level `DeviceError` / `System::Error` fold.
+- Pipe write operators (private) take `std::string_view` and return `bool`. Internal pipe and PIMPL buffers may still use `std::string` inside this module.
 - Doxygen (`ENABLE_DOC`) resolves dependency headers via `INCLUDE_PATH` and skips `thirdparty`.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD

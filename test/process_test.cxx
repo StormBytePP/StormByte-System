@@ -39,7 +39,6 @@
  */
 
 #include <StormByte/string/string.hxx>
-#include <StormByte/system/exception.hxx>
 #include <StormByte/system/process.hxx>
 #include <StormByte/system/variable.hxx>
 #include <StormByte/test_handlers.h>
@@ -80,6 +79,9 @@ namespace {
 		return out;
 	}
 
+	bool IsProcessError(const Process& proc, const StormByte::System::Process::Error expected) {
+		return proc.Fault().code() == make_error_code(expected);
+	}
 }
 
 #ifdef UNIX
@@ -87,83 +89,137 @@ namespace {
 // Basic
 // -------------------
 int test_basic_execution() {
+	const std::string fn = "test_basic_execution";
 	Process proc("echo", Args({"Hello, World!"}));
+	ASSERT_TRUE(fn, static_cast<bool>(proc));
+	ASSERT_FALSE(fn, static_cast<bool>(proc.Fault()));
 	std::string output;
 	proc >> output;
-	ASSERT_EQUAL("test_basic_execution", "Hello, World!\n", output);
-	int exit_code = proc.Wait();
-	ASSERT_EQUAL("test_basic_execution", 0, exit_code);
-	RETURN_TEST("test_basic_execution", 0);
-}
-
-int test_missing_executable() {
-	ASSERT_THROWS("test_missing_executable", Process("/no/such/stormbyte-executable"), StormByte::System::ExecutableNotFound);
-	RETURN_TEST("test_missing_executable", 0);
+	ASSERT_EQUAL(fn, "Hello, World!\n", output);
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	RETURN_TEST(fn, 0);
 }
 
 int test_process_to_ostream() {
+	const std::string fn = "test_process_to_ostream";
 	Process proc("echo", Args({"Hello, World!"}));
 	std::ostringstream oss;
 	oss << proc;
-	ASSERT_EQUAL("test_process_to_ostream", "Hello, World!\n", oss.str());
+	ASSERT_EQUAL(fn, "Hello, World!\n", oss.str());
 	proc.Wait();
-	RETURN_TEST("test_process_to_ostream", 0);
+	RETURN_TEST(fn, 0);
+}
+
+// -------------------
+// Errors
+// -------------------
+int test_missing_executable() {
+	const std::string fn = "test_missing_executable";
+	Process proc("/no/such/stormbyte-executable");
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::ExecutableNotFound));
+	RETURN_TEST(fn, 0);
+}
+
+int test_missing_executable_on_path() {
+	const std::string fn = "test_missing_executable_on_path";
+	Process proc("stormbyte-no-such-command-xyz");
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::ExecutableNotFound));
+	RETURN_TEST(fn, 0);
+}
+
+int test_wait_already_exited() {
+	const std::string fn = "test_wait_already_exited";
+	Process proc("true");
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	ASSERT_EQUAL(fn, -1, proc.Wait());
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::AlreadyExited));
+	RETURN_TEST(fn, 0);
+}
+
+int test_wait_timeout_sets_timed_out() {
+	const std::string fn = "test_wait_timeout_sets_timed_out";
+	Process proc("sleep", Args({"1"}));
+	ASSERT_TRUE(fn, static_cast<bool>(proc));
+	ASSERT_EQUAL(fn, -1, proc.Wait(std::chrono::milliseconds(10)));
+	ASSERT_TRUE(fn, static_cast<bool>(proc));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::TimedOut));
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	RETURN_TEST(fn, 0);
+}
+
+int test_write_after_consumer_exit() {
+	const std::string fn = "test_write_after_consumer_exit";
+	Process proc("true");
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	proc << std::string_view(std::string(4096, 'x'));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::BrokenPipe));
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Exit
 // -------------------
 int test_exit_code_false() {
+	const std::string fn = "test_exit_code_false";
 	Process proc("false");
-	int exit_code = proc.Wait();
-	ASSERT_TRUE("test_exit_code_false", exit_code != 0);
-	RETURN_TEST("test_exit_code_false", 0);
+	ASSERT_TRUE(fn, proc.Wait() != 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_exit_code_true() {
+	const std::string fn = "test_exit_code_true";
 	Process proc("true");
-	int exit_code = proc.Wait();
-	ASSERT_EQUAL("test_exit_code_true", 0, exit_code);
-	RETURN_TEST("test_exit_code_true", 0);
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_signaled_process() {
+	const std::string fn = "test_signaled_process";
 	Process proc("sh", Args({"-c", "kill -TERM $$"}));
-	ASSERT_EQUAL("test_signaled_process", -1, proc.Wait());
-	RETURN_TEST("test_signaled_process", 0);
+	ASSERT_EQUAL(fn, -1, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Move
 // -------------------
 int test_move_assignment() {
+	const std::string fn = "test_move_assignment";
 	Process source("echo", Args({"assigned"}));
 	Process destination("echo", Args({"discarded"}));
 	destination = std::move(source);
 	(void)source.Wait();
 	std::string output;
 	destination >> output;
-	ASSERT_EQUAL("test_move_assignment", "assigned\n", output);
-	ASSERT_EQUAL("test_move_assignment", 0, destination.Wait());
-	RETURN_TEST("test_move_assignment", 0);
+	ASSERT_EQUAL(fn, "assigned\n", output);
+	ASSERT_EQUAL(fn, 0, destination.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_move_process() {
+	const std::string fn = "test_move_process";
 	Process original("echo", Args({"moved"}));
 	Process moved(std::move(original));
+	ASSERT_FALSE(fn, static_cast<bool>(original));
+	ASSERT_TRUE(fn, static_cast<bool>(moved));
 	(void)original.Wait();
 	std::string output;
 	moved >> output;
-	ASSERT_EQUAL("test_move_process", "moved\n", output);
-	int exit_code = moved.Wait();
-	ASSERT_EQUAL("test_move_process", 0, exit_code);
-	RETURN_TEST("test_move_process", 0);
+	ASSERT_EQUAL(fn, "moved\n", output);
+	ASSERT_EQUAL(fn, 0, moved.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Pipeline
 // -------------------
 int test_pipeline_accumulated_and_future_output() {
+	const std::string fn = "test_pipeline_accumulated_and_future_output";
 	Process producer("cat");
 	Process consumer("cat");
 	producer << "before\n";
@@ -172,27 +228,29 @@ int test_pipeline_accumulated_and_future_output() {
 	producer << StormByte::System::EoF;
 	std::string output;
 	consumer >> output;
-	ASSERT_EQUAL("test_pipeline_accumulated_and_future_output", "before\nafter\n", output);
+	ASSERT_EQUAL(fn, "before\nafter\n", output);
 	producer.Wait();
 	consumer.Wait();
-	RETURN_TEST("test_pipeline_accumulated_and_future_output", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_destination_exits_first() {
+	const std::string fn = "test_pipeline_destination_exits_first";
 	Process producer("yes");
 	{
 		Process consumer("head", Args({"-c", "1"}));
 		producer >> consumer;
 		std::string output;
 		consumer >> output;
-		ASSERT_EQUAL("test_pipeline_destination_exits_first", 1u, output.size());
+		ASSERT_EQUAL(fn, 1u, output.size());
 	}
 
 	producer.Wait();
-	RETURN_TEST("test_pipeline_destination_exits_first", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_echo_sort_wc() {
+	const std::string fn = "test_pipeline_echo_sort_wc";
 	Process proc1("printf", Args({"%s", "orange\nbanana\napple\ncherry\nbanana\napple\n"}));
 	Process proc2("sort");
 	Process proc3("uniq");
@@ -200,27 +258,29 @@ int test_pipeline_echo_sort_wc() {
 	proc1 >> proc2 >> proc3 >> proc4;
 	std::string output;
 	proc4 >> output;
-	ASSERT_EQUAL("test_pipeline_echo_sort_wc", "4", Trim(output));
+	ASSERT_EQUAL(fn, "4", Trim(output));
 	proc1.Wait();
 	proc2.Wait();
 	proc3.Wait();
 	proc4.Wait();
-	RETURN_TEST("test_pipeline_echo_sort_wc", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_execution() {
+	const std::string fn = "test_pipeline_execution";
 	Process proc1("printf", Args({"%s", "Hello\n"}));
 	Process proc2("wc", Args({"-c"}));
 	proc1 >> proc2;
 	std::string output;
 	proc2 >> output;
-	ASSERT_EQUAL("test_pipeline_execution", "6", Trim(output));
+	ASSERT_EQUAL(fn, "6", Trim(output));
 	proc1.Wait();
 	proc2.Wait();
-	RETURN_TEST("test_pipeline_execution", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_find_sort_wc() {
+	const std::string fn = "test_pipeline_find_sort_wc";
 	Process proc1("printf", Args({"%s", "apple\nbanana\ncherry\napple\nbanana\ncherry\n"}));
 	Process proc2("grep", Args({"apple"}));
 	Process proc3("sort");
@@ -228,15 +288,16 @@ int test_pipeline_find_sort_wc() {
 	proc1 >> proc2 >> proc3 >> proc4;
 	std::string output;
 	proc4 >> output;
-	ASSERT_EQUAL("test_pipeline_find_sort_wc", "2", Trim(output));
+	ASSERT_EQUAL(fn, "2", Trim(output));
 	proc1.Wait();
 	proc2.Wait();
 	proc3.Wait();
 	proc4.Wait();
-	RETURN_TEST("test_pipeline_find_sort_wc", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_reconnect() {
+	const std::string fn = "test_pipeline_reconnect";
 	Process producer("cat");
 	Process first_consumer("cat");
 	Process second_consumer("cat");
@@ -247,97 +308,94 @@ int test_pipeline_reconnect() {
 	producer << StormByte::System::EoF;
 	std::string output;
 	second_consumer >> output;
-	ASSERT_TRUE("test_pipeline_reconnect", output.ends_with("after\n"));
+	ASSERT_TRUE(fn, output.ends_with("after\n"));
 	producer.Wait();
 	first_consumer.Wait();
 	second_consumer.Wait();
-	RETURN_TEST("test_pipeline_reconnect", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_reconnect_long_lived() {
+	const std::string fn = "test_pipeline_reconnect_long_lived";
 	Process producer("sleep", Args({"1"}));
 	Process first_consumer("cat");
 	Process second_consumer("cat");
 	producer >> first_consumer;
 	producer >> second_consumer;
-	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, producer.Wait());
-	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, first_consumer.Wait());
-	ASSERT_EQUAL("test_pipeline_reconnect_long_lived", 0, second_consumer.Wait());
-	RETURN_TEST("test_pipeline_reconnect_long_lived", 0);
+	ASSERT_EQUAL(fn, 0, producer.Wait());
+	ASSERT_EQUAL(fn, 0, first_consumer.Wait());
+	ASSERT_EQUAL(fn, 0, second_consumer.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_pipeline_sort() {
+	const std::string fn = "test_pipeline_sort";
 	Process proc1("printf", Args({"%s", "banana\napple\ncherry\n"}));
 	Process proc2("sort");
 	proc1 >> proc2;
 	std::string output;
 	proc2 >> output;
-	ASSERT_EQUAL("test_pipeline_sort", "apple\nbanana\ncherry\n", output);
+	ASSERT_EQUAL(fn, "apple\nbanana\ncherry\n", output);
 	proc1.Wait();
 	proc2.Wait();
-	RETURN_TEST("test_pipeline_sort", 0);
+	RETURN_TEST(fn, 0);
 }
 
 int test_tr_pipeline() {
+	const std::string fn = "test_tr_pipeline";
 	Process proc1("printf", Args({"%s", "abc"}));
 	Process proc2("tr", Args({"a-z", "A-Z"}));
 	proc1 >> proc2;
 	std::string output;
 	proc2 >> output;
-	ASSERT_EQUAL("test_tr_pipeline", "ABC", output);
+	ASSERT_EQUAL(fn, "ABC", output);
 	proc1.Wait();
 	proc2.Wait();
-	RETURN_TEST("test_tr_pipeline", 0);
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Stderr
 // -------------------
 int test_stderr_capture() {
+	const std::string fn = "test_stderr_capture";
 	Process proc("sh", Args({"-c", "printf '%s' 'err-msg' 1>&2"}));
 	std::string err;
 	proc.Stderr(err);
-	ASSERT_EQUAL("test_stderr_capture", "err-msg", err);
-	int exit_code = proc.Wait();
-	ASSERT_EQUAL("test_stderr_capture", 0, exit_code);
-	RETURN_TEST("test_stderr_capture", 0);
+	ASSERT_EQUAL(fn, "err-msg", err);
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Stdin
 // -------------------
 int test_stdin_roundtrip() {
+	const std::string fn = "test_stdin_roundtrip";
 	Process proc("cat");
 	proc << "line-one\n";
 	proc << "line-two\n";
 	proc << StormByte::System::EoF;
 	std::string output;
 	proc >> output;
-	ASSERT_EQUAL("test_stdin_roundtrip", "line-one\nline-two\n", output);
-	int exit_code = proc.Wait();
-	ASSERT_EQUAL("test_stdin_roundtrip", 0, exit_code);
-	RETURN_TEST("test_stdin_roundtrip", 0);
-}
-
-int test_write_after_consumer_exit() {
-	Process proc("true");
-	ASSERT_EQUAL("test_write_after_consumer_exit", 0, proc.Wait());
-	ASSERT_THROWS("test_write_after_consumer_exit", proc << std::string_view(std::string(4096, 'x')), StormByte::System::ProcessCreationError);
-	RETURN_TEST("test_write_after_consumer_exit", 0);
+	ASSERT_EQUAL(fn, "line-one\nline-two\n", output);
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Variable
 // -------------------
 int test_variable_expansion() {
-	ASSERT_EQUAL("test_variable_expansion", "foo~bar", std::string(StormByte::System::Variable::Expand("foo~bar")));
+	const std::string fn = "test_variable_expansion";
+	ASSERT_EQUAL(fn, "foo~bar", std::string(StormByte::System::Variable::Expand("foo~bar")));
 	const char* home = std::getenv("HOME");
 	if (home != nullptr && *home != '\0') {
-		ASSERT_EQUAL("test_variable_expansion", std::string(home), std::string(StormByte::System::Variable::Expand("~")));
-		ASSERT_EQUAL("test_variable_expansion", std::string(home) + "/a", std::string(StormByte::System::Variable::Expand("~/a")));
+		ASSERT_EQUAL(fn, std::string(home), std::string(StormByte::System::Variable::Expand("~")));
+		ASSERT_EQUAL(fn, std::string(home) + "/a", std::string(StormByte::System::Variable::Expand("~/a")));
 	}
 
-	RETURN_TEST("test_variable_expansion", 0);
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
@@ -350,6 +408,7 @@ void wait_interrupt_handler(int) {
 }
 
 int test_standard_descriptor_reuse() {
+	const std::string fn = "test_standard_descriptor_reuse";
 	const int saved_stdin = dup(STDIN_FILENO);
 	const int saved_stdout = dup(STDOUT_FILENO);
 	const int saved_stderr = dup(STDERR_FILENO);
@@ -360,12 +419,14 @@ int test_standard_descriptor_reuse() {
 	close(STDERR_FILENO);
 	std::string output;
 	int result = 0;
-	try {
+	{
 		Process proc("echo", Args({"descriptor-safe"}));
-		proc >> output;
-		result = proc.Wait();
-	} catch (...) {
-		result = -1;
+		if (!proc)
+			result = -1;
+		else {
+			proc >> output;
+			result = proc.Wait();
+		}
 	}
 
 	dup2(saved_stdin, STDIN_FILENO);
@@ -374,12 +435,13 @@ int test_standard_descriptor_reuse() {
 	close(saved_stdin);
 	close(saved_stdout);
 	close(saved_stderr);
-	ASSERT_EQUAL("test_standard_descriptor_reuse", 0, result);
-	ASSERT_EQUAL("test_standard_descriptor_reuse", "descriptor-safe\n", output);
-	RETURN_TEST("test_standard_descriptor_reuse", 0);
+	ASSERT_EQUAL(fn, 0, result);
+	ASSERT_EQUAL(fn, "descriptor-safe\n", output);
+	RETURN_TEST(fn, 0);
 }
 
 int test_wait_interrupted_by_signal() {
+	const std::string fn = "test_wait_interrupted_by_signal";
 	struct sigaction action{};
 	action.sa_handler = wait_interrupt_handler;
 	sigemptyset(&action.sa_mask);
@@ -394,27 +456,27 @@ int test_wait_interrupted_by_signal() {
 	const int exit_code = proc.Wait();
 	interrupter.join();
 	sigaction(SIGUSR1, &previous, nullptr);
-	ASSERT_EQUAL("test_wait_interrupted_by_signal", 1, wait_interrupt_signal);
-	ASSERT_EQUAL("test_wait_interrupted_by_signal", 0, exit_code);
-	RETURN_TEST("test_wait_interrupted_by_signal", 0);
+	ASSERT_EQUAL(fn, 1, wait_interrupt_signal);
+	ASSERT_EQUAL(fn, 0, exit_code);
+	RETURN_TEST(fn, 0);
 }
 
 int test_wait_timeout() {
+	const std::string fn = "test_wait_timeout";
 	Process proc("sleep", Args({"1"}));
-	const int timeout_result = proc.Wait(std::chrono::milliseconds(10));
-	ASSERT_EQUAL("test_wait_timeout", -1, timeout_result);
-	const int exit_code = proc.Wait();
-	ASSERT_EQUAL("test_wait_timeout", 0, exit_code);
-	RETURN_TEST("test_wait_timeout", 0);
+	ASSERT_EQUAL(fn, -1, proc.Wait(std::chrono::milliseconds(10)));
+	ASSERT_EQUAL(fn, 0, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_wait_with_undrained_pipeline() {
+	const std::string fn = "test_wait_with_undrained_pipeline";
 	Process producer("dd", Args({"if=/dev/zero", "bs=1048576", "count=16"}));
 	Process consumer("cat");
 	producer >> consumer;
 	(void)producer.Wait();
 	(void)consumer.Wait();
-	RETURN_TEST("test_wait_with_undrained_pipeline", 0);
+	RETURN_TEST(fn, 0);
 }
 
 #elifdef WINDOWS
@@ -422,72 +484,115 @@ int test_wait_with_undrained_pipeline() {
 // Basic
 // -------------------
 int test_basic_execution_windows() {
+	const std::string fn = "test_basic_execution_windows";
 	Process proc("cmd.exe", Args({"/d", "/c", "echo Hello, World!"}));
+	ASSERT_TRUE(fn, static_cast<bool>(proc));
 	std::string output;
 	proc >> output;
-	ASSERT_EQUAL("test_basic_execution_windows", "Hello, World!", Trim(output));
-	DWORD exit_code = proc.Wait();
-	ASSERT_EQUAL("test_basic_execution_windows", 0u, exit_code);
-	RETURN_TEST("test_basic_execution_windows", 0);
+	ASSERT_EQUAL(fn, "Hello, World!", Trim(output));
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	RETURN_TEST(fn, 0);
 }
 
 int test_dir_lists_something() {
+	const std::string fn = "test_dir_lists_something";
 	Process proc("cmd.exe", Args({"/d", "/c", "dir /b"}));
 	std::string output;
 	proc >> output;
-	ASSERT_FALSE("test_dir_lists_something", Trim(output).empty());
-	DWORD exit_code = proc.Wait();
-	ASSERT_EQUAL("test_dir_lists_something", 0u, exit_code);
-	RETURN_TEST("test_dir_lists_something", 0);
+	ASSERT_FALSE(fn, Trim(output).empty());
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_windows_argument_with_quotes() {
+	const std::string fn = "test_windows_argument_with_quotes";
 	Process proc("cmd.exe", Args({"/d", "/c", "echo hello \"world\""}));
 	std::string output;
 	proc >> output;
-	ASSERT_EQUAL("test_windows_argument_with_quotes", "hello \"world\"", Trim(output));
-	ASSERT_EQUAL("test_windows_argument_with_quotes", 0u, proc.Wait());
-	RETURN_TEST("test_windows_argument_with_quotes", 0);
+	ASSERT_EQUAL(fn, "hello \"world\"", Trim(output));
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 int test_windows_argument_with_space() {
+	const std::string fn = "test_windows_argument_with_space";
 	Process proc("cmd.exe", Args({"/d", "/c", "echo hello world"}));
 	std::string output;
 	proc >> output;
-	ASSERT_EQUAL("test_windows_argument_with_space", "hello world", Trim(output));
-	ASSERT_EQUAL("test_windows_argument_with_space", 0u, proc.Wait());
-	RETURN_TEST("test_windows_argument_with_space", 0);
+	ASSERT_EQUAL(fn, "hello world", Trim(output));
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	RETURN_TEST(fn, 0);
+}
+
+// -------------------
+// Errors
+// -------------------
+int test_missing_executable_windows() {
+	const std::string fn = "test_missing_executable_windows";
+	Process proc("C:\\no\\such\\stormbyte-executable.exe");
+	ASSERT_FALSE(fn, static_cast<bool>(proc));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::ExecutableNotFound));
+	RETURN_TEST(fn, 0);
+}
+
+int test_wait_already_exited_windows() {
+	const std::string fn = "test_wait_already_exited_windows";
+	Process proc("cmd.exe", Args({"/d", "/c", "exit /b 0"}));
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	ASSERT_EQUAL(fn, static_cast<DWORD>(-1), proc.Wait());
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::AlreadyExited));
+	RETURN_TEST(fn, 0);
+}
+
+int test_wait_timeout_windows() {
+	const std::string fn = "test_wait_timeout_windows";
+	Process proc("cmd.exe", Args({"/d", "/c", "timeout /t 2 /nobreak >NUL"}));
+	ASSERT_EQUAL(fn, static_cast<DWORD>(-1), proc.Wait(std::chrono::milliseconds(10)));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::TimedOut));
+	(void)proc.Wait();
+	RETURN_TEST(fn, 0);
+}
+
+int test_write_after_consumer_exit_windows() {
+	const std::string fn = "test_write_after_consumer_exit_windows";
+	Process proc("cmd.exe", Args({"/d", "/c", "exit /b 0"}));
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	proc << std::string_view(std::string(4096, 'x'));
+	ASSERT_TRUE(fn, IsProcessError(proc, StormByte::System::Process::Error::BrokenPipe));
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Exit
 // -------------------
 int test_exit_code_windows() {
+	const std::string fn = "test_exit_code_windows";
 	Process proc("cmd.exe", Args({"/d", "/c", "exit /b 7"}));
-	DWORD exit_code = proc.Wait();
-	ASSERT_EQUAL("test_exit_code_windows", 7u, exit_code);
-	RETURN_TEST("test_exit_code_windows", 0);
+	ASSERT_EQUAL(fn, 7u, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Move
 // -------------------
 int test_move_process_windows() {
+	const std::string fn = "test_move_process_windows";
 	Process original("cmd.exe", Args({"/d", "/c", "echo moved"}));
 	Process moved(std::move(original));
 	(void)original.Wait();
 	std::string output;
 	moved >> output;
-	ASSERT_EQUAL("test_move_process_windows", "moved", Trim(output));
-	DWORD exit_code = moved.Wait();
-	ASSERT_EQUAL("test_move_process_windows", 0u, exit_code);
-	RETURN_TEST("test_move_process_windows", 0);
+	ASSERT_EQUAL(fn, "moved", Trim(output));
+	ASSERT_EQUAL(fn, 0u, moved.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Stdin
 // -------------------
 int test_stdin_roundtrip_windows() {
+	const std::string fn = "test_stdin_roundtrip_windows";
 	Process proc("sort.exe");
 	proc << "b\r\n";
 	proc << "a\r\n";
@@ -502,16 +607,16 @@ int test_stdin_roundtrip_windows() {
 		normalized.push_back(output[i]);
 	}
 
-	ASSERT_EQUAL("test_stdin_roundtrip_windows", "a\nb\n", normalized);
-	DWORD exit_code = proc.Wait();
-	ASSERT_EQUAL("test_stdin_roundtrip_windows", 0u, exit_code);
-	RETURN_TEST("test_stdin_roundtrip_windows", 0);
+	ASSERT_EQUAL(fn, "a\nb\n", normalized);
+	ASSERT_EQUAL(fn, 0u, proc.Wait());
+	RETURN_TEST(fn, 0);
 }
 
 // -------------------
 // Variable
 // -------------------
 int test_windows_long_environment_expansion() {
+	const std::string fn = "test_windows_long_environment_expansion";
 	const std::string value = "0123456789";
 	_putenv_s("STORMBYTE_LONG_ENV", value.c_str());
 	std::wstring input;
@@ -519,8 +624,8 @@ int test_windows_long_environment_expansion() {
 		input += L"%STORMBYTE_LONG_ENV%";
 	const String expanded = StormByte::System::Variable::Expand(std::wstring_view(input));
 	_putenv_s("STORMBYTE_LONG_ENV", "");
-	ASSERT_EQUAL("test_windows_long_environment_expansion", 40000u, expanded.size());
-	RETURN_TEST("test_windows_long_environment_expansion", 0);
+	ASSERT_EQUAL(fn, 40000u, expanded.size());
+	RETURN_TEST(fn, 0);
 }
 
 #endif
@@ -532,8 +637,16 @@ int main() {
 	// Basic
 	// -------------------
 	result += test_basic_execution();
-	result += test_missing_executable();
 	result += test_process_to_ostream();
+
+	// -------------------
+	// Errors
+	// -------------------
+	result += test_missing_executable();
+	result += test_missing_executable_on_path();
+	result += test_wait_already_exited();
+	result += test_wait_timeout_sets_timed_out();
+	result += test_write_after_consumer_exit();
 
 	// -------------------
 	// Exit
@@ -570,7 +683,6 @@ int main() {
 	// Stdin
 	// -------------------
 	result += test_stdin_roundtrip();
-	result += test_write_after_consumer_exit();
 
 	// -------------------
 	// Variable
@@ -592,6 +704,14 @@ int main() {
 	result += test_dir_lists_something();
 	result += test_windows_argument_with_quotes();
 	result += test_windows_argument_with_space();
+
+	// -------------------
+	// Errors
+	// -------------------
+	result += test_missing_executable_windows();
+	result += test_wait_already_exited_windows();
+	result += test_wait_timeout_windows();
+	result += test_write_after_consumer_exit_windows();
 
 	// -------------------
 	// Exit

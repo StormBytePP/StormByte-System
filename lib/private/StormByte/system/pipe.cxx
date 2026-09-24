@@ -38,30 +38,25 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/system/exception.hxx>
 #include <StormByte/system/pipe.hxx>
 
 #include <cerrno>
-#include <cstring>
-#ifndef WINDOWS
-#include <system_error>
-#else
-#include <string>
-#endif
 #ifdef UNIX
 #include <fcntl.h>
 #include <limits.h>
 #include <mutex>
 #include <signal.h>
 #include <unistd.h>
-#else
-SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 #endif
 #include <vector>
 
 using namespace StormByte::System;
 
-Pipe::Pipe():
+#ifdef WINDOWS
+SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
+#endif
+
+Pipe::Pipe() noexcept:
 #ifdef WINDOWS
 	m_fd{ INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE } {
 #else
@@ -98,14 +93,14 @@ Pipe::Pipe():
 	}
 
 	if (result == -1) {
-		const int error = errno;
 		CloseRead();
 		CloseWrite();
-		throw ProcessCreationError(std::strerror(error));
 	}
 	#else
-	if (!CreatePipe(&m_fd[0], &m_fd[1], &m_sAttr, 0))
-		throw ProcessCreationError("CreatePipe failed with error " + std::to_string(GetLastError()));
+	if (!CreatePipe(&m_fd[0], &m_fd[1], &m_sAttr, 0)) {
+		m_fd[0] = INVALID_HANDLE_VALUE;
+		m_fd[1] = INVALID_HANDLE_VALUE;
+	}
 	#endif
 }
 
@@ -141,6 +136,14 @@ Pipe& Pipe::operator=(Pipe&& pipe) noexcept {
 Pipe::~Pipe() noexcept {
 	CloseRead();
 	CloseWrite();
+}
+
+Pipe::operator bool() const noexcept {
+#ifdef WINDOWS
+	return m_fd[0] != INVALID_HANDLE_VALUE && m_fd[1] != INVALID_HANDLE_VALUE;
+#else
+	return m_fd[0] != -1 && m_fd[1] != -1;
+#endif
 }
 
 #ifdef UNIX
@@ -255,9 +258,8 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 		const ssize_t bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
 		if (bytes_written < 0 && errno == EINTR)
 			continue;
-		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size) {
+		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size)
 			return false;
-		}
 
 		out.erase(0, chunk_size);
 	} while (!out.empty());
@@ -307,10 +309,8 @@ void Pipe::CloseWrite() noexcept {
 	Close(m_fd[1]);
 }
 
-Pipe& Pipe::operator<<(std::string_view data) {
-	if (!WriteAtomic(std::string(data)))
-		throw ProcessCreationError("Pipe write failed");
-	return *this;
+bool Pipe::operator<<(std::string_view data) {
+	return WriteAtomic(std::string(data));
 }
 
 std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
@@ -371,17 +371,8 @@ std::string& Pipe::operator>>(std::string& out) const {
 		#endif
 		if (bytes > 0)
 			out.append(buffer.data(), static_cast<size_t>(bytes));
-		else if (bytes == 0) {
-#ifndef UNIX
-			if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
-				throw ProcessCreationError("ReadFile failed with error " + std::to_string(GetLastError()));
-#endif
+		else
 			break;
-		}
-#ifdef UNIX
-		else if (errno != EINTR)
-			throw ProcessCreationError(std::strerror(errno));
-#endif
 	}
 
 	return out;
@@ -419,5 +410,4 @@ void Pipe::Close(HANDLE& fd) noexcept {
 void Pipe::HandleInformation(HANDLE handle, DWORD mask, DWORD flags) {
 	SetHandleInformation(handle, mask, flags);
 }
-
 #endif
