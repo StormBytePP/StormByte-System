@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Summary]
 
-StormByte System is the C++26 process and environment layer of the StormByte suite.
+StormByte System is the C++26 process, environment and device layer of the StormByte suite.
 
 It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
 
-Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts on Windows), not `std::string` by value.
+Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. Classify the storage or network medium behind a path (`Device`) and obtain nominal throughput and transfer windows. POSIX and Windows stay behind one API. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts), not `std::string` by value.
 
 From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
 
@@ -21,6 +21,11 @@ If you landed here from a release link and have not read the tree:
 - License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE)
 
 ## [Unreleased]
+
+### Added
+
+- **`Device`:** query object for the medium behind a filesystem accessor. Stores only a `StormByte::String::String` path. Construction does not throw and does not open a handle. `Kind`, `Access` (`Readable` / `Writable` bitmask), `Throughput` and `Window` are computed on each call and are valid only when the Device converts to `true`. `operator bool` means a successful probe, not read or write permission. Constructors take `String`, `std::string_view`, `std::wstring_view` and `std::filesystem::path`. Symlinks are followed; a dangling symlink is `DeviceError::BrokenSymlink`. Special device nodes are never `Writable`. Suggested windows are `bps / 500` clamped to 16 KiB–1 MiB.
+- **`Error` / `DeviceError`:** `std::error_code` domains (`StormByte.System`, `StormByte.System.Device`) with `StormByte::Error::Fault`. Process still throws `Exception`; the two hierarchies are not mixed.
 
 ### Changed
 
