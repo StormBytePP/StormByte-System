@@ -1,6 +1,6 @@
-[submodule "StormByte Suite - Base"]
-	path = thirdparty/StormByte/base/src
-	url = https://github.com/StormBytePP/StormByte.git
 [submodule "StormByte BuildMaster"]
 	path = thirdparty/buildmaster
 	url = https://github.com/StormBytePP/StormByte-BuildMaster.git
+[submodule "StormByte Suite - String"]
+	path = thirdparty/StormByte/string/src
+	url = https://github.com/StormBytePP/StormByte-String.git

@@ -38,8 +38,9 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/system/pipe.hxx>
 #include <StormByte/system/exception.hxx>
+#include <StormByte/system/pipe.hxx>
+
 #include <cerrno>
 #include <cstring>
 #ifndef WINDOWS
@@ -47,7 +48,6 @@
 #else
 #include <string>
 #endif
-using namespace StormByte::System;
 #ifdef UNIX
 #include <fcntl.h>
 #include <limits.h>
@@ -58,6 +58,9 @@ using namespace StormByte::System;
 SECURITY_ATTRIBUTES Pipe::m_sAttr = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
 #endif
 #include <vector>
+
+using namespace StormByte::System;
+
 Pipe::Pipe():
 #ifdef WINDOWS
 	m_fd{ INVALID_HANDLE_VALUE, INVALID_HANDLE_VALUE } {
@@ -91,7 +94,7 @@ Pipe::Pipe():
 
 			close(fd);
 			fd = duplicate;
-	}
+		}
 	}
 
 	if (result == -1) {
@@ -139,6 +142,7 @@ Pipe::~Pipe() noexcept {
 	CloseRead();
 	CloseWrite();
 }
+
 #ifdef UNIX
 bool Pipe::BindRead(int dest) noexcept {
 	return Bind(m_fd[0], dest);
@@ -148,8 +152,8 @@ bool Pipe::BindWrite(int dest) noexcept {
 	return Bind(m_fd[1], dest);
 }
 
-ssize_t Pipe::Write(const std::string& data) {
-	return write(m_fd[1], data.c_str(), sizeof(char) * data.length());
+ssize_t Pipe::Write(std::string_view data) {
+	return write(m_fd[1], data.data(), data.size());
 }
 
 bool Pipe::WriteEOF() const {
@@ -181,6 +185,7 @@ bool Pipe::ReadEOF() const {
 		return false;
 	return ((poll_data.revents & POLLHUP) == POLLHUP) || ((poll_data.revents & POLLERR) == POLLERR);
 }
+
 #else
 void Pipe::ReadHandleInformation(DWORD mask, DWORD flags) {
 	HandleInformation(m_fd[0], mask, flags);
@@ -198,10 +203,10 @@ HANDLE Pipe::WriteHandle() const {
 	return m_fd[1];
 }
 
-DWORD Pipe::Write(const std::string& data) {
+DWORD Pipe::Write(std::string_view data) {
 	DWORD dwWritten = 0;
 	SetLastError(ERROR_SUCCESS);
-	WriteFile(m_fd[1], data.c_str(), static_cast<DWORD>(sizeof(char) * data.length()), &dwWritten, NULL);
+	WriteFile(m_fd[1], data.data(), static_cast<DWORD>(data.size()), &dwWritten, NULL);
 	return dwWritten;
 }
 
@@ -211,6 +216,7 @@ DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
 	ReadFile(m_fd[0], buffer.data(), size, &dwRead, NULL);
 	return dwRead;
 }
+
 #endif
 #ifdef UNIX
 bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) const {
@@ -257,6 +263,7 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 	} while (!out.empty());
 	return out.empty();
 }
+
 #else
 bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) const {
 	DWORD available = 0;
@@ -290,6 +297,7 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 	} while (!out.empty());
 	return out.empty();
 }
+
 #endif
 void Pipe::CloseRead() noexcept {
 	Close(m_fd[0]);
@@ -299,7 +307,7 @@ void Pipe::CloseWrite() noexcept {
 	Close(m_fd[1]);
 }
 
-Pipe& Pipe::operator<<(const std::string& data) {
+Pipe& Pipe::operator<<(std::string_view data) {
 	if (!WriteAtomic(std::string(data)))
 		throw ProcessCreationError("Pipe write failed");
 	return *this;
@@ -355,14 +363,12 @@ std::string& Pipe::operator>>(std::string& out) const {
 	DWORD bytes;
 	#endif
 	std::vector<char> buffer(MAX_READ_BYTES);
-while (true) {
-		bytes = Read(buffer, static_cast<
-#ifdef UNIX
-		ssize_t
-#else
-		DWORD
-#endif
-	>(MAX_READ_BYTES));
+	while (true) {
+		#ifdef UNIX
+		bytes = Read(buffer, static_cast<ssize_t>(MAX_READ_BYTES));
+		#else
+		bytes = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
+		#endif
 		if (bytes > 0)
 			out.append(buffer.data(), static_cast<size_t>(bytes));
 		else if (bytes == 0) {
@@ -374,14 +380,14 @@ while (true) {
 		}
 #ifdef UNIX
 		else if (errno != EINTR)
-				throw ProcessCreationError(std::strerror(errno));
+			throw ProcessCreationError(std::strerror(errno));
 #endif
 	}
 
 	return out;
 }
-#ifdef UNIX
 
+#ifdef UNIX
 bool Pipe::Bind(int& src, int dest) noexcept {
 	if (dup2(src, dest) == -1)
 		return false;
@@ -401,6 +407,7 @@ void Pipe::Close(int& fd) noexcept {
 	close(fd);
 	fd = -1;
 }
+
 #else
 void Pipe::Close(HANDLE& fd) noexcept {
 	if (fd == INVALID_HANDLE_VALUE)
@@ -412,4 +419,5 @@ void Pipe::Close(HANDLE& fd) noexcept {
 void Pipe::HandleInformation(HANDLE handle, DWORD mask, DWORD flags) {
 	SetHandleInformation(handle, mask, flags);
 }
+
 #endif

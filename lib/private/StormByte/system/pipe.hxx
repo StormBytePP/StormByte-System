@@ -46,6 +46,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -55,9 +56,6 @@
 #include <poll.h>
 #endif
 
-/**
- * @brief System module of the StormByte suite.
- */
 namespace StormByte::System {
 	/**
 	 * @class Pipe
@@ -78,9 +76,6 @@ namespace StormByte::System {
 			 */
 			Pipe();
 
-			/**
-			 * @brief Copy constructor (deleted).
-			 */
 			Pipe(const Pipe&) = delete;
 
 			/**
@@ -88,9 +83,6 @@ namespace StormByte::System {
 			 */
 			Pipe(Pipe&& pipe) noexcept;
 
-			/**
-			 * @brief Copy assignment (deleted).
-			 */
 			Pipe& operator=(const Pipe&) = delete;
 
 			/**
@@ -117,11 +109,11 @@ namespace StormByte::System {
 			bool BindWrite(int fd) noexcept;
 
 			/**
-			 * @brief Write a string to the write end.
+			 * @brief Write bytes to the write end.
 			 * @param str Data.
 			 * @return Bytes written.
 			 */
-			ssize_t Write(const std::string& str);
+			ssize_t Write(std::string_view str);
 
 			/**
 			 * @brief Whether the write end is no longer writable (HUP/ERR).
@@ -170,11 +162,11 @@ namespace StormByte::System {
 			HANDLE WriteHandle() const;
 
 			/**
-			 * @brief Write a string to the write end.
+			 * @brief Write bytes to the write end.
 			 * @param str Data.
 			 * @return Bytes written.
 			 */
-			DWORD Write(const std::string& str);
+			DWORD Write(std::string_view str);
 
 			/**
 			 * @brief Read into @p buffer up to @p size bytes.
@@ -203,11 +195,11 @@ namespace StormByte::System {
 			void CloseWrite() noexcept;
 
 			/**
-			 * @brief Write @p str via Write().
+			 * @brief Write @p str via WriteAtomic.
 			 * @param str Data.
 			 * @return *this.
 			 */
-			Pipe& operator<<(const std::string& str);
+			Pipe& operator<<(std::string_view str);
 
 			/**
 			 * @brief Read until EOF into @p str.
@@ -218,7 +210,9 @@ namespace StormByte::System {
 
 			/**
 			 * @brief Forward all current and future data to another pipe.
+			 * @param source Source pipe.
 			 * @param destination Destination pipe.
+			 * @param cancelled Cancellation flag.
 			 * @param on_failure Called if the destination closes before forwarding completes.
 			 * @return Forwarding thread.
 			 */

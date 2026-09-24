@@ -39,24 +39,38 @@
  */
 
 #include <StormByte/system/exception.hxx>
-#include <StormByte/system/process/implementation.hxx>
 #include <StormByte/system/pipe.hxx>
 #include <StormByte/system/process.hxx>
+#include <StormByte/system/process/implementation.hxx>
+
 #ifdef UNIX
-#include <fcntl.h>
-#include <sys/wait.h>
 #include <cerrno>
 #include <cstring>
-#include <signal.h>
 #include <cstdlib>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
 #else
 #include <cctype>
-#include <tlhelp32.h>
-#include <sstream>
 #include <iterator>
+#include <sstream>
+#include <tlhelp32.h>
 #endif
+
 using namespace StormByte::System;
-Process::Process(const std::filesystem::path& prog, const std::vector<std::string>& args):
+
+namespace {
+	std::vector<std::string> NarrowArgs(const std::vector<StormByte::String::String>& args) {
+		std::vector<std::string> out;
+		out.reserve(args.size());
+		for (const StormByte::String::String& arg : args)
+			out.emplace_back(std::string(std::string_view(arg)));
+		return out;
+	}
+
+}
+
+Process::Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args):
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
 	#ifdef UNIX
@@ -66,7 +80,7 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
 	m_implementation->m_program = prog;
-	m_implementation->m_arguments = args;
+	m_implementation->m_arguments = NarrowArgs(args);
 #ifdef WINDOWS
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
@@ -74,7 +88,7 @@ Process::Process(const std::filesystem::path& prog, const std::vector<std::strin
 	Run();
 }
 
-Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
+Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args):
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
 	#ifdef UNIX
@@ -84,7 +98,7 @@ Process::Process(std::filesystem::path&& prog, std::vector<std::string>&& args):
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
 	m_implementation->m_program = std::move(prog);
-	m_implementation->m_arguments = std::move(args);
+	m_implementation->m_arguments = NarrowArgs(args);
 #ifdef WINDOWS
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
 	ZeroMemory(&m_implementation->m_piProcInfo, sizeof(PROCESS_INFORMATION));
@@ -188,9 +202,23 @@ std::string& Process::operator>>(std::string& data) const {
 	return data;
 }
 
+StormByte::String::String& Process::operator>>(StormByte::String::String& data) const {
+	std::string raw;
+	*this >> raw;
+	data = StormByte::String::String(raw);
+	return data;
+}
+
 std::string& Process::Stderr(std::string& str) const {
 	if (m_implementation && m_implementation->m_pstderr)
 		*m_implementation->m_pstderr >> str;
+	return str;
+}
+
+StormByte::String::String& Process::Stderr(StormByte::String::String& str) const {
+	std::string raw;
+	Stderr(raw);
+	str = StormByte::String::String(raw);
 	return str;
 }
 
@@ -201,10 +229,17 @@ std::ostream& StormByte::System::operator<<(std::ostream& os, const Process& exe
 	return os << data;
 }
 
-Process& Process::operator<<(const std::string& data) {
-	if (m_implementation && m_implementation->m_pstdin)
-		*m_implementation->m_pstdin << data;
+Process& Process::operator<<(std::string_view data) {
+	Send(data);
 	return *this;
+}
+
+Process& Process::operator<<(const StormByte::String::String& data) {
+	return *this << std::string_view(data);
+}
+
+Process& Process::operator<<(const StormByte::CString& data) {
+	return *this << static_cast<std::string_view>(data);
 }
 
 void Process::operator<<(const System::_EoF&) {
@@ -358,10 +393,11 @@ void Process::Run() {
 #endif
 }
 
-void Process::Send(const std::string& str) {
-	if (m_implementation->m_pstdin)
+void Process::Send(std::string_view str) {
+	if (m_implementation && m_implementation->m_pstdin)
 		*m_implementation->m_pstdin << str;
 }
+
 #ifdef UNIX
 int Process::Wait() noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_pid <= 0)
@@ -430,6 +466,7 @@ pid_t Process::Pid() noexcept {
 		return -1;
 	return m_implementation->m_pid;
 }
+
 #else
 DWORD Process::Wait() noexcept {
 	if (!m_implementation || m_implementation->m_status == Status::TERMINATED || m_implementation->m_piProcInfo.hProcess == nullptr)
@@ -508,6 +545,7 @@ PROCESS_INFORMATION Process::Pid() {
 		return PROCESS_INFORMATION{};
 	return m_implementation->m_piProcInfo;
 }
+
 #endif
 void Process::Suspend() {
 	if (!m_implementation)
@@ -570,8 +608,9 @@ void Process::Resume() {
 #endif
 	m_implementation->m_status = Status::RUNNING;
 }
+
 #ifdef WINDOWS
-std::string Process::QuoteWindowsArgument(const std::string& argument) {
+std::string Process::QuoteWindowsArgument(std::string_view argument) {
 	std::string quoted = "\"";
 	size_t backslashes = 0;
 	for (const char character: argument) {

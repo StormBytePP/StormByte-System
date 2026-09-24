@@ -11,7 +11,7 @@ StormByte-System is the C++26 system module of the [StormByte](https://dev.storm
 
 Spawn processes with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment variables. POSIX and Windows stay behind one API.
 
-It depends on [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer.
 
 ## Table of Contents
 
@@ -53,6 +53,7 @@ cmake --install build
 | **Shell-like chaining** | `p1 >> p2` forwards stdout to stdin on a worker thread. |
 | **stdin control** | `<<` writes; `<< System::EoF` closes the write end. |
 | **Environment paths** | `Variable::Expand` (`%VAR%` on Windows, `~` on UNIX). |
+| **DLL-safe text** | Public text is `StormByte::String::String` / `CString`, not `std::string` by value. |
 
 ## Features
 
@@ -67,7 +68,8 @@ cmake --install build
 
 | Dependency | Role |
 |------------|------|
-| [StormByte (base) 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) | Exceptions, visibility, `Size` |
+| [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) | Owned UTF-8 / wide text across a DLL boundary |
+| [StormByte (base) 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) | Exceptions, visibility, `CString` / `WCString`, `Size` (vendored by String) |
 
 ## The rest of the suite
 
@@ -88,21 +90,24 @@ cmake --install build
 
 | Type | Role |
 |------|------|
-| `Process` | Spawn and talk to a child |
-| `Variable` | Expand environment strings |
+| `Process` | Spawn and talk to a child. Args are `std::vector<StormByte::String::String>`. |
+| `Variable` | Expand environment strings; returns `StormByte::String::String`. |
 | `Exception` / `FileIOError` / `ExecutableNotFound` / `ProcessCreationError` | Errors |
 | `System::EoF` | Close process stdin |
 
 `Pipe` is private.
+
+`Process << std::string_view` / `String` / `CString` writes stdin. `Process >> std::string&` or `Process >> String&` reads stdout in the caller’s object. The same pair exists for `Stderr`.
 
 ## Examples
 
 ### Run a process
 
 ```cpp
+#include <StormByte/string/string.hxx>
 #include <StormByte/system/process.hxx>
 
-StormByte::System::Process echo("/bin/echo", {"hello"});
+StormByte::System::Process echo("/bin/echo", {StormByte::String::String("hello")});
 std::string out;
 echo >> out;
 echo.Wait();
@@ -111,8 +116,8 @@ echo.Wait();
 ### Pipe two processes
 
 ```cpp
-StormByte::System::Process producer("/bin/echo", {"hello"});
-StormByte::System::Process consumer("/usr/bin/tr", {"a-z", "A-Z"});
+StormByte::System::Process producer("/bin/echo", {StormByte::String::String("hello")});
+StormByte::System::Process consumer("/usr/bin/tr", {StormByte::String::String("a-z"), StormByte::String::String("A-Z")});
 producer >> consumer;
 producer << StormByte::System::EoF;
 std::string out;
@@ -132,15 +137,18 @@ auto tmp = StormByte::System::Variable::Expand("%TEMP%");
 #endif
 ```
 
+`home` / `tmp` are `StormByte::String::String`. Compare or print in the caller (`std::string_view(home)`, `std::string(home)`).
+
 ## Design notes
 
 - Construction starts the child immediately.
-- `Wait()` has no timeout.
+- `Wait()` has an untimed overload and a timed `Wait(std::chrono::milliseconds)` overload.
 - On UNIX, System ignores `SIGPIPE` once process-wide so closed pipe peers report write failure instead of terminating the host process.
 - Windows `Suspend()` / `Resume()` operate on a snapshot of the child threads; a thread created during enumeration may not be affected.
 - Windows process stdio handles are made non-inheritable immediately after process creation; a small inheritance window exists during `CreateProcessW`.
 - Destructor waits if the process is still owned.
 - Move invalidates the source (PID / handles cleared).
+- `Process` is inheritable. Its only data member is a private PIMPL. `std::filesystem::path` is accepted by constructor and copied into that PIMPL; it is not a public field.
 
 ## Testing
 

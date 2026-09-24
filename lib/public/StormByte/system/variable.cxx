@@ -38,52 +38,74 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/system/variable.hxx>
 #include <StormByte/system/exception.hxx>
-#include <StormByte/string.hxx>
-#include <vector>
+#include <StormByte/system/variable.hxx>
+
 #ifdef WINDOWS
 #include <windows.h>
-#include <tchar.h>
+#include <vector>
 #else
-#include <pwd.h>
 #include <cstdlib>
+#include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
 #endif
+
 using namespace StormByte::System;
-std::string Variable::Expand(const std::string& var) {
+
+StormByte::String::String Variable::Expand(std::string_view var) {
 	return ExpandEnvironmentVariable(var);
-} 
+}
+
+StormByte::String::String Variable::Expand(const StormByte::String::String& var) {
+	return ExpandEnvironmentVariable(std::string_view(var));
+}
+
+StormByte::String::String Variable::Expand(const StormByte::CString& var) {
+	return ExpandEnvironmentVariable(static_cast<std::string_view>(var));
+}
+
 #ifdef WINDOWS
-std::string Variable::Expand(const std::wstring& var) {
+StormByte::String::String Variable::Expand(std::wstring_view var) {
 	return ExpandEnvironmentVariable(var);
-} 
+}
+
+StormByte::String::String Variable::Expand(const StormByte::String::WString& var) {
+	return ExpandEnvironmentVariable(std::wstring_view(var));
+}
+
+StormByte::String::String Variable::Expand(const StormByte::WCString& var) {
+	return ExpandEnvironmentVariable(static_cast<std::wstring_view>(var));
+}
 #endif
-std::string Variable::ExpandEnvironmentVariable(const std::string& var) {
+
+StormByte::String::String Variable::ExpandEnvironmentVariable(std::string_view var) {
 	#ifdef WINDOWS
-	return ExpandEnvironmentVariable(String::UTF8Decode(var));
+	return ExpandEnvironmentVariable(std::wstring_view(static_cast<StormByte::String::WString>(StormByte::String::String(var))));
 	#else
 	if (var != "~" && (var.size() < 2 || var[0] != '~' || var[1] != '/'))
-		return var;
+		return StormByte::String::String(var);
 	const std::filesystem::path home = HomePath();
 	if (home.empty())
-		return var;
-	return home.string() + (var.size() == 1 ? std::string() : var.substr(1));
+		return StormByte::String::String(var);
+	if (var.size() == 1)
+		return StormByte::String::String(home.string());
+	return StormByte::String::String(home.string() + std::string(var.substr(1)));
 	#endif
 }
+
 #ifdef WINDOWS
-std::string Variable::ExpandEnvironmentVariable(const std::wstring& var) {
-	DWORD size = ::ExpandEnvironmentStringsW(var.c_str(), nullptr, 0);
+StormByte::String::String Variable::ExpandEnvironmentVariable(std::wstring_view var) {
+	DWORD size = ::ExpandEnvironmentStringsW(var.data(), nullptr, 0);
 	if (size == 0)
 		throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
 	std::vector<wchar_t> buffer(size);
 	while (true) {
-		const DWORD result = ::ExpandEnvironmentStringsW(var.c_str(), buffer.data(), static_cast<DWORD>(buffer.size()));
+		const DWORD result = ::ExpandEnvironmentStringsW(var.data(), buffer.data(), static_cast<DWORD>(buffer.size()));
 		if (result == 0)
 			throw ProcessCreationError("ExpandEnvironmentStringsW failed with error " + std::to_string(GetLastError()));
 		if (result <= buffer.size())
-			return String::UTF8Encode(std::wstring(buffer.data(), result - 1));
+			return StormByte::String::String(StormByte::String::WString(std::wstring_view(buffer.data(), result - 1)));
 		buffer.resize(result);
 	}
 }
@@ -91,7 +113,7 @@ std::string Variable::ExpandEnvironmentVariable(const std::wstring& var) {
 std::filesystem::path Variable::HomePath() {
 	if (const char* home = std::getenv("HOME"); home != nullptr && *home != '\0')
 		return home;
-	const struct passwd *pw = getpwuid(getuid());
+	const struct passwd* pw = getpwuid(getuid());
 	return pw == nullptr || pw->pw_dir == nullptr ? std::filesystem::path() : std::filesystem::path(pw->pw_dir);
 }
 #endif

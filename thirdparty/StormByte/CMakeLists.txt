@@ -5,9 +5,9 @@ else()
 endif()
 
 if(WITH_STORMBYTE STREQUAL "SYSTEM")
-	find_package(StormByte REQUIRED)
+	find_package(StormByte REQUIRED String)
 else()
-	add_subdirectory(base)
+	add_subdirectory(string)
 endif()
 
-buildmaster_link(StormByte-System StormByte)
+buildmaster_link(StormByte-System StormByte-String)

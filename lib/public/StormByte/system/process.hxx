@@ -40,25 +40,25 @@
 
 #pragma once
 
+#include <StormByte/cstring.hxx>
+#include <StormByte/string/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string_view>
+#include <vector>
 #ifdef WINDOWS
 #include <windows.h>
 #else
 #include <unistd.h>
 #endif
-#include <vector>
 
-/**
- * @brief System module of the StormByte suite.
- */
 namespace StormByte::System {
-	class Pipe;	///< Forward declaration
-	class ProcessImplementation;	///< Forward declaration
+	class Pipe;
+	class ProcessImplementation;
 
 	/**
 	 * @struct _EoF
@@ -77,7 +77,6 @@ namespace StormByte::System {
 	 *
 	 * Starts immediately on construction. Move-only.
 	 * Supports chaining (`p1 >> p2`), writing stdin, reading stdout/stderr, Suspend/Resume.
-	 * Wait() blocks until exit (no timeout).
 	 */
 	class STORMBYTE_SYSTEM_PUBLIC Process {
 		public:
@@ -86,18 +85,15 @@ namespace StormByte::System {
 			 * @param prog Executable path or name.
 			 * @param args Argument list (not including argv[0]).
 			 */
-			Process(const std::filesystem::path& prog, const std::vector<std::string>& args = std::vector<std::string>());
+			Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args = {});
 
 			/**
 			 * @brief Construct and start (moved).
 			 * @param prog Executable path or name (moved).
 			 * @param args Argument list (moved).
 			 */
-			Process(std::filesystem::path&& prog, std::vector<std::string>&& args = std::vector<std::string>());
+			Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args = {});
 
-			/**
-			 * @brief Copy constructor (deleted).
-			 */
 			Process(const Process& proc) = delete;
 
 			/**
@@ -105,9 +101,6 @@ namespace StormByte::System {
 			 */
 			Process(Process&& proc) noexcept;
 
-			/**
-			 * @brief Copy assignment (deleted).
-			 */
 			Process& operator=(const Process& proc) = delete;
 
 			/**
@@ -123,7 +116,6 @@ namespace StormByte::System {
 			#ifdef UNIX
 			/**
 			 * @brief Block until the process exits (no timeout).
-			 * @note If output is forwarded, this does not wait for downstream consumers to drain.
 			 * @return Exit code, or -1 on failure, signal termination, or already reaped.
 			 */
 			int Wait() noexcept;
@@ -131,7 +123,6 @@ namespace StormByte::System {
 			/**
 			 * @brief Wait for the process to exit up to @p timeout.
 			 * @param timeout Maximum wait duration.
-			 * @note On timeout, an active output forwarder is cancelled.
 			 * @return Exit code, or -1 on timeout, failure, or already reaped.
 			 */
 			int Wait(std::chrono::milliseconds timeout) noexcept;
@@ -144,7 +135,6 @@ namespace StormByte::System {
 			#else
 			/**
 			 * @brief Block until the process exits (no timeout).
-			 * @note If output is forwarded, this does not wait for downstream consumers to drain.
 			 * @return Exit code, or (DWORD)-1 on failure.
 			 */
 			DWORD Wait() noexcept;
@@ -152,7 +142,6 @@ namespace StormByte::System {
 			/**
 			 * @brief Wait for the process to exit up to @p timeout.
 			 * @param timeout Maximum wait duration.
-			 * @note On timeout, an active output forwarder is cancelled.
 			 * @return Exit code, or (DWORD)-1 on timeout, failure, or already reaped.
 			 */
 			DWORD Wait(std::chrono::milliseconds timeout) noexcept;
@@ -182,18 +171,32 @@ namespace StormByte::System {
 			Process& operator>>(Process& proc);
 
 			/**
-			 * @brief Read remaining stdout into @p str.
-			 * @param str Destination string.
+			 * @brief Read remaining stdout into a caller-owned string.
+			 * @param str Destination.
 			 * @return Reference to @p str.
 			 */
 			std::string& operator>>(std::string& str) const;
 
 			/**
-			 * @brief Read remaining stderr into @p str.
-			 * @param str Destination string.
+			 * @brief Read remaining stdout into owned text.
+			 * @param str Destination.
+			 * @return Reference to @p str.
+			 */
+			StormByte::String::String& operator>>(StormByte::String::String& str) const;
+
+			/**
+			 * @brief Read remaining stderr into a caller-owned string.
+			 * @param str Destination.
 			 * @return Reference to @p str.
 			 */
 			std::string& Stderr(std::string& str) const;
+
+			/**
+			 * @brief Read remaining stderr into owned text.
+			 * @param str Destination.
+			 * @return Reference to @p str.
+			 */
+			StormByte::String::String& Stderr(StormByte::String::String& str) const;
 
 			/**
 			 * @brief Stream process stdout to an ostream.
@@ -201,11 +204,25 @@ namespace StormByte::System {
 			friend STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 
 			/**
-			 * @brief Write @p str to process stdin.
+			 * @brief Write UTF-8 text to process stdin.
 			 * @param str Data.
 			 * @return *this.
 			 */
-			Process& operator<<(const std::string& str);
+			Process& operator<<(std::string_view str);
+
+			/**
+			 * @brief Write owned UTF-8 text to process stdin.
+			 * @param str Data.
+			 * @return *this.
+			 */
+			Process& operator<<(const StormByte::String::String& str);
+
+			/**
+			 * @brief Write a CString to process stdin.
+			 * @param str Data.
+			 * @return *this.
+			 */
+			Process& operator<<(const StormByte::CString& str);
 
 			/**
 			 * @brief Close process stdin (write end).
@@ -230,7 +247,7 @@ namespace StormByte::System {
 			 * @param argument Argument text.
 			 * @return Quoted command-line argument.
 			 */
-			static std::string QuoteWindowsArgument(const std::string& argument);
+			static std::string QuoteWindowsArgument(std::string_view argument);
 
 			/**
 			 * @brief Full command line as wide string.
@@ -243,7 +260,7 @@ namespace StormByte::System {
 			 * @brief Write to stdin.
 			 * @param str Data.
 			 */
-			void Send(const std::string& str);
+			void Send(std::string_view str);
 
 			/**
 			 * @brief Spawn the child process.

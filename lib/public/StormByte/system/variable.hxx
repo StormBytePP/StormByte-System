@@ -40,14 +40,17 @@
 
 #pragma once
 
+#include <StormByte/cstring.hxx>
+#include <StormByte/string/string.hxx>
+#ifdef WINDOWS
+#include <StormByte/string/wstring.hxx>
+#include <StormByte/wcstring.hxx>
+#endif
 #include <StormByte/system/visibility.h>
 
 #include <filesystem>
-#include <string>
+#include <string_view>
 
-/**
- * @brief System module of the StormByte suite.
- */
 namespace StormByte::System {
 	/**
 	 * @class Variable
@@ -58,36 +61,64 @@ namespace StormByte::System {
 	class STORMBYTE_SYSTEM_PUBLIC Variable {
 		public:
 			/**
-			 * @brief Expand environment variables in @p str.
-			 * @param str Input string.
-			 * @return Expanded string.
+			 * @brief Expand environment variables in UTF-8 text.
+			 * @param str Input.
+			 * @return Expanded owned text.
 			 */
-			static std::string Expand(const std::string& str);
+			static StormByte::String::String Expand(std::string_view str);
+
+			/**
+			 * @brief Expand environment variables in owned UTF-8 text.
+			 * @param str Input.
+			 * @return Expanded owned text.
+			 */
+			static StormByte::String::String Expand(const StormByte::String::String& str);
+
+			/**
+			 * @brief Expand environment variables in a CString.
+			 * @param str Input.
+			 * @return Expanded owned text.
+			 */
+			static StormByte::String::String Expand(const StormByte::CString& str);
 
 			#ifdef WINDOWS
 			/**
-			 * @brief Expand environment variables in a wide string.
-			 * @param str Input wide string.
-			 * @return Expanded UTF-8 string.
+			 * @brief Expand environment variables in wide text.
+			 * @param str Input.
+			 * @return Expanded owned UTF-8 text.
 			 */
-			static std::string Expand(const std::wstring& str);
+			static StormByte::String::String Expand(std::wstring_view str);
+
+			/**
+			 * @brief Expand environment variables in owned wide text.
+			 * @param str Input.
+			 * @return Expanded owned UTF-8 text.
+			 */
+			static StormByte::String::String Expand(const StormByte::String::WString& str);
+
+			/**
+			 * @brief Expand environment variables in a WCString.
+			 * @param str Input.
+			 * @return Expanded owned UTF-8 text.
+			 */
+			static StormByte::String::String Expand(const StormByte::WCString& str);
 			#endif
 
 		private:
 			/**
-			 * @brief Platform implementation for UTF-8 / narrow strings.
+			 * @brief Platform implementation for UTF-8 text.
 			 * @param str Input.
-			 * @return Expanded string.
+			 * @return Expanded owned text.
 			 */
-			static std::string ExpandEnvironmentVariable(const std::string& str);
+			static StormByte::String::String ExpandEnvironmentVariable(std::string_view str);
 
 			#ifdef WINDOWS
 			/**
-			 * @brief Platform implementation for wide strings.
+			 * @brief Platform implementation for wide text.
 			 * @param str Input.
-			 * @return Expanded UTF-8 string.
+			 * @return Expanded owned UTF-8 text.
 			 */
-			static std::string ExpandEnvironmentVariable(const std::wstring& str);
+			static StormByte::String::String ExpandEnvironmentVariable(std::wstring_view str);
 			#else
 			/**
 			 * @brief Current user home directory.

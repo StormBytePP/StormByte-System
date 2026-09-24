@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 StormByte System is the C++26 process and environment layer of the StormByte suite.
 
-It depends on [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
 
-Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API.
+Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. POSIX and Windows stay behind one API. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts on Windows), not `std::string` by value.
 
-From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte Base).
+From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
 
 If you landed here from a release link and have not read the tree:
 
@@ -25,8 +25,11 @@ If you landed here from a release link and have not read the tree:
 ### Changed
 
 - **License:** original System sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
-- Declared Base requirement is [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer.
-- Doxygen (`ENABLE_DOC`) resolves Base headers via `INCLUDE_PATH` and skips `thirdparty`.
+- Direct Base submodule replaced by [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer (`thirdparty/StormByte/string/src`). Base 2.0.0 or newer comes in through String.
+- **Breaking:** `Variable::Expand` returns `StormByte::String::String`. Public overloads take `std::string_view`, `StormByte::String::String` and `StormByte::CString` (Windows also `std::wstring_view`, `WString`, `WCString`). `std::string` / `std::wstring` by value or as the only public input are gone.
+- **Breaking:** `Process` arguments are `std::vector<StormByte::String::String>`. stdin `operator<<` takes `std::string_view`, `String` and `CString`. stdout/stderr can fill a caller `std::string&` or a `String&`.
+- Pipe write operators (private) take `std::string_view`. Internal pipe and PIMPL buffers may still use `std::string` inside this module.
+- Doxygen (`ENABLE_DOC`) resolves dependency headers via `INCLUDE_PATH` and skips `thirdparty`.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
 
