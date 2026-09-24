@@ -1,26 +1,21 @@
-# Changelog
-
-All notable changes to this project are documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Summary]
 
-StormByte System is the C++26 process, environment and device layer of the StormByte suite.
+StormByte System is the C++26 process, device and environment layer of the StormByte suite.
 
-It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
 
-Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, and expand environment strings. Classify the storage or network medium behind a path (`Device`) and obtain nominal throughput and transfer windows. POSIX and Windows stay behind one API. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts), not `std::string` by value.
-
-From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
+Spawn children with piped stdin/stdout/stderr, chain them, suspend/resume, classify the medium behind a path, and expand environment strings. POSIX and Windows stay behind one API. Process and Device report failures as `StormByte::Error::Fault` in their own domains; they do not throw.
 
 If you landed here from a release link and have not read the tree:
 
-- What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
-- License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE)
+- What this module is, how to build it, and examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
+- License: dual LGPL-3.0-or-later or commercial. See [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE) and [COPYING.LGPLv3](https://github.com/StormBytePP/StormByte-System/blob/master/COPYING.LGPLv3).
 
 ## [Unreleased]
+
+[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/2.0.0...HEAD
+
+## [2.0.0] - 2026-09-24
 
 ### Added
 
@@ -37,7 +32,7 @@ If you landed here from a release link and have not read the tree:
     - `operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`).
     - Timed `Wait` sets `TimedOut` and leaves the child running. A second wait after a successful reap sets `AlreadyExited`.
     - A failed stdin write sets `BrokenPipe`.
-- **Breaking:** `Variable::Expand` returns `StormByte::String::String`.
+- **Breaking:** `Variable::Expand` returns `StormByte::String::String`. On Windows, a failed `ExpandEnvironmentStringsW` returns the original text (same as a missing UNIX home).
 - **Breaking:** Process constructor arguments are `std::vector<StormByte::String::String>`.
 - Pipe construction and I/O no longer throw. Invalid pipes convert to `false`.
 - Public text across a DLL boundary uses `StormByte::String::String` / `CString`.
@@ -50,7 +45,7 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** `StormByte/system/exception.hxx` (`Exception`, `FileIOError`, `ExecutableNotFound`, `ProcessCreationError`).
 - **Breaking:** `StormByte::System::Error` and `StormByte/system/error.hxx` (domain `StormByte.System`). Device and Process keep their own domains.
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...HEAD
+[2.0.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/2.0.0
 
 ## [1.1.0] - 2026-09-13
 
