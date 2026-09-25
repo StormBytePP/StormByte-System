@@ -40,6 +40,7 @@
 
 #pragma once
 
+#include <StormByte/binary_data.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <atomic>
@@ -48,7 +49,6 @@
 #include <string>
 #include <string_view>
 #include <thread>
-#include <vector>
 
 #ifdef WINDOWS
 #include <windows.h>
@@ -130,11 +130,11 @@ namespace StormByte::System {
 
 			/**
 			 * @brief Read into @p buffer up to @p size bytes.
-			 * @param buffer Destination.
+			 * @param buffer Destination. Must already hold at least @p size bytes.
 			 * @param size Max bytes.
 			 * @return Bytes read.
 			 */
-			ssize_t Read(std::vector<char>& buffer, ssize_t size) const;
+			ssize_t Read(StormByte::BinaryData& buffer, ssize_t size) const;
 
 			/**
 			 * @brief Whether the read end reports HUP/ERR.
@@ -177,11 +177,11 @@ namespace StormByte::System {
 
 			/**
 			 * @brief Read into @p buffer up to @p size bytes.
-			 * @param buffer Destination.
+			 * @param buffer Destination. Must already hold at least @p size bytes.
 			 * @param size Max bytes.
 			 * @return Bytes read.
 			 */
-			DWORD Read(std::vector<CHAR>& buffer, DWORD size) const;
+			DWORD Read(StormByte::BinaryData& buffer, DWORD size) const;
 			#endif
 
 			/**
