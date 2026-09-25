@@ -48,7 +48,6 @@
 #include <signal.h>
 #include <unistd.h>
 #endif
-#include <vector>
 
 using namespace StormByte::System;
 
@@ -172,7 +171,7 @@ bool Pipe::WriteEOF() const {
 	return !((poll_data.revents & POLLOUT) == POLLOUT) || ((poll_data.revents & POLLERR) == POLLERR);
 }
 
-ssize_t Pipe::Read(std::vector<char>& buffer, ssize_t bytes) const {
+ssize_t Pipe::Read(StormByte::BinaryData& buffer, ssize_t bytes) const {
 	return read(m_fd[0], buffer.data(), static_cast<size_t>(bytes));
 }
 
@@ -213,7 +212,7 @@ DWORD Pipe::Write(std::string_view data) {
 	return dwWritten;
 }
 
-DWORD Pipe::Read(std::vector<CHAR>& buffer, DWORD size) const {
+DWORD Pipe::Read(StormByte::BinaryData& buffer, DWORD size) const {
 	DWORD dwRead = 0;
 	SetLastError(ERROR_SUCCESS);
 	ReadFile(m_fd[0], buffer.data(), size, &dwRead, NULL);
@@ -316,15 +315,16 @@ bool Pipe::operator<<(std::string_view data) {
 std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
 	return std::thread([source = std::move(source), destination = std::move(destination), cancelled, on_failure = std::move(on_failure)] {
 #ifdef UNIX
-		std::vector<char> buffer(MAX_READ_BYTES);
+		StormByte::BinaryData buffer;
+		buffer.resize(StormByte::Size{ MAX_READ_BYTES });
 		ssize_t bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
 			if (!source->WaitReadable(cancelled))
 				break;
-			bytes_read = source->Read(buffer, MAX_READ_BYTES);
+			bytes_read = source->Read(buffer, static_cast<ssize_t>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(buffer.data(), static_cast<size_t>(bytes_read)), cancelled);
+				forwarding = destination->WriteAtomic(std::string(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes_read)), cancelled);
 			else if (bytes_read == 0)
 				break;
 			else if (errno != EINTR)
@@ -334,7 +334,8 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 		if (!forwarding && (!cancelled || !cancelled->load()) && on_failure)
 			on_failure();
 #else
-		std::vector<CHAR> buffer(MAX_READ_BYTES);
+		StormByte::BinaryData buffer;
+		buffer.resize(StormByte::Size{ MAX_READ_BYTES });
 		DWORD bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
@@ -342,7 +343,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 				break;
 			bytes_read = source->Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(buffer.data(), bytes_read), cancelled);
+				forwarding = destination->WriteAtomic(std::string(reinterpret_cast<const char*>(buffer.data()), bytes_read), cancelled);
 			else if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
 				forwarding = false;
 			else
@@ -362,7 +363,8 @@ std::string& Pipe::operator>>(std::string& out) const {
 	#else
 	DWORD bytes;
 	#endif
-	std::vector<char> buffer(MAX_READ_BYTES);
+	StormByte::BinaryData buffer;
+	buffer.resize(StormByte::Size{ MAX_READ_BYTES });
 	while (true) {
 		#ifdef UNIX
 		bytes = Read(buffer, static_cast<ssize_t>(MAX_READ_BYTES));
@@ -370,7 +372,7 @@ std::string& Pipe::operator>>(std::string& out) const {
 		bytes = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 		#endif
 		if (bytes > 0)
-			out.append(buffer.data(), static_cast<size_t>(bytes));
+			out.append(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes));
 		else
 			break;
 	}
