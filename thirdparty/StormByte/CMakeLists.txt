@@ -10,4 +10,7 @@ else()
 	add_subdirectory(string)
 endif()
 
-buildmaster_link(StormByte-System StormByte-String)
+# Temporary: StormByte-String PUBLIC-links Base in-tree, but BuildMaster
+# does not forward that INTERFACE across an installed component. Name
+# StormByte here until BM transitive deps work for a nested consumer.
+buildmaster_link(StormByte-System StormByte StormByte-String)
