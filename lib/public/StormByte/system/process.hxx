@@ -221,37 +221,30 @@ namespace StormByte::System {
 			Process& operator>>(Process& proc);
 
 			/**
-			 * @brief Read remaining stdout into a caller-owned string.
-			 * @param str Destination.
-			 * @return Reference to @p str.
-			 */
-			std::string& operator>>(std::string& str) const;
-
-			/**
 			 * @brief Read remaining stdout into owned text.
-			 * @param str Destination.
+			 * @param str Destination. Replaced with the captured text.
 			 * @return Reference to @p str.
 			 */
 			StormByte::String::String& operator>>(StormByte::String::String& str) const;
 
 			/**
-			 * @brief Read remaining stderr into a caller-owned string.
-			 * @param str Destination.
-			 * @return Reference to @p str.
-			 */
-			std::string& Stderr(std::string& str) const;
-
-			/**
 			 * @brief Read remaining stderr into owned text.
-			 * @param str Destination.
+			 * @param str Destination. Replaced with the captured text.
 			 * @return Reference to @p str.
 			 */
 			StormByte::String::String& Stderr(StormByte::String::String& str) const;
 
 			/**
 			 * @brief Stream process stdout to an ostream.
+			 * @param ostream Destination. Grown in the caller.
+			 * @param proc Process.
+			 * @return @p ostream.
 			 */
-			friend STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
+			STORMBYTE_FORCE_INLINE friend std::ostream& operator<<(std::ostream& ostream, const Process& proc) {
+				StormByte::String::String owned;
+				proc >> owned;
+				return ostream << static_cast<std::string>(owned);
+			}
 
 			/**
 			 * @brief Write UTF-8 text to process stdin.
@@ -326,13 +319,6 @@ namespace StormByte::System {
 			std::unique_ptr<ProcessImplementation> m_implementation;
 	};
 
-	/**
-	 * @brief Stream process stdout to an ostream.
-	 * @param ostream Destination.
-	 * @param proc Process.
-	 * @return ostream.
-	 */
-	STORMBYTE_SYSTEM_PUBLIC std::ostream& operator<<(std::ostream& ostream, const Process& proc);
 }
 
 /**
