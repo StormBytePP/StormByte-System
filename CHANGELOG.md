@@ -22,16 +22,9 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Changed
-
-- **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
-- **Breaking:** `Device::Window` is `ByteSize`. `Device::Throughput` stores octets per second as `ByteSize`, not `std::size_t`.
-- **Breaking:** `Process::operator>>` and `Stderr` take `StormByte::String::String`, not `std::string`. The captured text is owned by Base. `operator<<(std::ostream&, const Process&)` is `STORMBYTE_FORCE_INLINE`, so the stream buffer grows in the caller. `operator<<` on `Process` and `Pipe` accepts `std::string_view` and `String`. `operator>>` stays `String` only: a view cannot own the bytes that were read.
-- **Process path.** Both constructors copy `std::filesystem::path` inside the DLL. The rvalue overload no longer moves the caller buffer into `m_program`.
-
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/2.0.0...HEAD
 
-## [2.0.0] - 2026-09-24
+## [2.0.0] - 2026-09-26
 
 ### Added
 
@@ -59,6 +52,10 @@ If you landed here from a release link and have not read the tree:
 - Depends on StormByte-String 1.0.0 (vendors Base 2.0.0).
 - Visibility macros follow Base/Logger (`EXPORTS` / `STORMBYTE_SYSTEM_SHARED` / static empty).
 - Windows Device probe links `iphlpapi` and `ws2_32`. Host CPU name links `advapi32`. macOS Device probe links IOKit and CoreFoundation.
+- **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
+- **Breaking:** `Device::Window` is `ByteSize`. `Device::Throughput` stores octets per second as `ByteSize`, not `std::size_t`.
+- **Breaking:** `Process::operator>>` and `Stderr` take `StormByte::String::String`, not `std::string`. The captured text is owned by Base. `operator<<(std::ostream&, const Process&)` is `STORMBYTE_FORCE_INLINE`, so the stream buffer grows in the caller. `operator<<` on `Process` and `Pipe` accepts `std::string_view` and `String`. `operator>>` stays `String` only: a view cannot own the bytes that were read.
+- **Process path.** Both constructors copy `std::filesystem::path` inside the DLL. The rvalue overload no longer moves the caller buffer into `m_program`.
 
 ### Removed
 
