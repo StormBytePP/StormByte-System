@@ -221,29 +221,19 @@ Process& Process::operator>>(Process& exe) {
 	return exe;
 }
 
-std::string& Process::operator>>(std::string& data) const {
-	if (m_implementation && m_implementation->m_pstdout)
-		*m_implementation->m_pstdout >> data;
-	return data;
-}
-
 StormByte::String::String& Process::operator>>(StormByte::String::String& data) const {
-	std::string raw;
-	*this >> raw;
-	data = StormByte::String::String(raw);
+	StormByte::String::String raw;
+	if (m_implementation && m_implementation->m_pstdout)
+		*m_implementation->m_pstdout >> raw;
+	data = std::move(raw);
 	return data;
-}
-
-std::string& Process::Stderr(std::string& str) const {
-	if (m_implementation && m_implementation->m_pstderr)
-		*m_implementation->m_pstderr >> str;
-	return str;
 }
 
 StormByte::String::String& Process::Stderr(StormByte::String::String& str) const {
-	std::string raw;
-	Stderr(raw);
-	str = StormByte::String::String(raw);
+	StormByte::String::String raw;
+	if (m_implementation && m_implementation->m_pstderr)
+		*m_implementation->m_pstderr >> raw;
+	str = std::move(raw);
 	return str;
 }
 
@@ -709,13 +699,6 @@ std::wstring Process::FullCommand() const {
 #endif
 
 namespace StormByte::System {
-	std::ostream& operator<<(std::ostream& os, const Process& exe) {
-		std::string data;
-		if (exe.m_implementation && exe.m_implementation->m_pstdout)
-			*exe.m_implementation->m_pstdout >> data;
-		return os << data;
-	}
-
 	const StormByte::Error::Category<enum Process::Error>& process_category() noexcept {
 		static StormByte::Error::Category<enum Process::Error> instance;
 		return instance;

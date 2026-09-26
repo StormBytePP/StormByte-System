@@ -237,10 +237,10 @@ bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) cons
 	return false;
 }
 
-bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
-	if (data.empty())
+bool Pipe::WriteAtomic(std::string_view data, const std::shared_ptr<std::atomic_bool>& cancelled) {
+	std::string_view out(data);
+	if (out.empty())
 		return true;
-	std::string out = std::move(data);
 	do {
 		if (cancelled && cancelled->load())
 			return false;
@@ -254,13 +254,13 @@ bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_boo
 			return false;
 		if (poll_result == 0)
 			continue;
-		const ssize_t bytes_written = ::write(m_fd[1], out.c_str(), chunk_size);
+		const ssize_t bytes_written = ::write(m_fd[1], out.data(), chunk_size);
 		if (bytes_written < 0 && errno == EINTR)
 			continue;
 		if (bytes_written < 0 || static_cast<size_t>(bytes_written) != chunk_size)
 			return false;
 
-		out.erase(0, chunk_size);
+		out.remove_prefix(chunk_size);
 	} while (!out.empty());
 	return out.empty();
 }
@@ -279,22 +279,22 @@ bool Pipe::WaitReadable(const std::shared_ptr<std::atomic_bool>& cancelled) cons
 	return false;
 }
 
-bool Pipe::WriteAtomic(std::string&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
-	if (data.empty())
+bool Pipe::WriteAtomic(std::string_view data, const std::shared_ptr<std::atomic_bool>& cancelled) {
+	std::string_view out(data);
+	if (out.empty())
 		return true;
-	std::string out = std::move(data);
 	do {
 		if (cancelled && cancelled->load())
 			return false;
 		const size_t chunk_size = (out.length() > 4096) ? 4096 : out.length();
 		DWORD dwWritten = 0;
 		SetLastError(ERROR_SUCCESS);
-		if (!WriteFile(m_fd[1], out.c_str(), static_cast<DWORD>(chunk_size), &dwWritten, NULL) ||
+		if (!WriteFile(m_fd[1], out.data(), static_cast<DWORD>(chunk_size), &dwWritten, NULL) ||
 			dwWritten != static_cast<DWORD>(chunk_size)) {
 			return false;
 		}
 
-		out.erase(0, chunk_size);
+		out.remove_prefix(chunk_size);
 	} while (!out.empty());
 	return out.empty();
 }
@@ -309,7 +309,11 @@ void Pipe::CloseWrite() noexcept {
 }
 
 bool Pipe::operator<<(std::string_view data) {
-	return WriteAtomic(std::string(data));
+	return WriteAtomic(data);
+}
+
+bool Pipe::WriteAtomic(StormByte::String::String&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
+	return WriteAtomic(static_cast<std::string_view>(data), cancelled);
 }
 
 std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> destination, const std::shared_ptr<std::atomic_bool>& cancelled, std::function<void()> on_failure) {
@@ -324,7 +328,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 				break;
 			bytes_read = source->Read(buffer, static_cast<ssize_t>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes_read)), cancelled);
+				forwarding = destination->WriteAtomic(std::string_view(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes_read)), cancelled);
 			else if (bytes_read == 0)
 				break;
 			else if (errno != EINTR)
@@ -343,7 +347,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 				break;
 			bytes_read = source->Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 			if (bytes_read > 0)
-				forwarding = destination->WriteAtomic(std::string(reinterpret_cast<const char*>(buffer.data()), bytes_read), cancelled);
+				forwarding = destination->WriteAtomic(std::string_view(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes_read)), cancelled);
 			else if (GetLastError() != ERROR_SUCCESS && GetLastError() != ERROR_BROKEN_PIPE)
 				forwarding = false;
 			else
@@ -357,13 +361,14 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 	});
 }
 
-std::string& Pipe::operator>>(std::string& out) const {
+StormByte::String::String& Pipe::operator>>(StormByte::String::String& out) const {
 	#ifdef UNIX
 	ssize_t bytes;
 	#else
 	DWORD bytes;
 	#endif
 	StormByte::BinaryData buffer;
+	std::string raw;
 	buffer.resize(StormByte::ByteSize{ MAX_READ_BYTES });
 	while (true) {
 		#ifdef UNIX
@@ -372,11 +377,19 @@ std::string& Pipe::operator>>(std::string& out) const {
 		bytes = Read(buffer, static_cast<DWORD>(MAX_READ_BYTES));
 		#endif
 		if (bytes > 0)
-			out.append(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes));
+			raw.append(reinterpret_cast<const char*>(buffer.data()), static_cast<size_t>(bytes));
 		else
 			break;
 	}
 
+	if (!raw.empty()) {
+		if (!out.empty()) {
+			std::string merged(static_cast<std::string_view>(out));
+			merged.append(raw);
+			raw = std::move(merged);
+		}
+		out = StormByte::String::String(std::string_view(raw));
+	}
 	return out;
 }
 

@@ -129,7 +129,7 @@ if (!missing) {
 Process echo("echo", {StormByte::String::String("hello")});
 if (!echo)
 	return;
-std::string out;
+StormByte::String::String out;
 echo >> out;
 if (echo.Wait() != 0)
 	/* child status */;
@@ -146,7 +146,7 @@ Process producer("printf", {StormByte::String::String("%s"), StormByte::String::
 Process consumer("tr", {StormByte::String::String("a-z"), StormByte::String::String("A-Z")});
 producer >> consumer;
 producer << StormByte::System::EoF;
-std::string out;
+StormByte::String::String out;
 consumer >> out;
 producer.Wait();
 consumer.Wait();

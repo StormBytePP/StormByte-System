@@ -41,6 +41,7 @@
 #pragma once
 
 #include <StormByte/binary_data.hxx>
+#include <StormByte/string/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <atomic>
@@ -186,10 +187,17 @@ namespace StormByte::System {
 
 			/**
 			 * @brief Write @p str in chunks until complete or peer closes.
-			 * @param str Data (moved). Empty string succeeds immediately.
+			 * @param str Data. Empty view succeeds immediately.
 			 * @return true if all data was written.
 			 */
-			bool WriteAtomic(std::string&& str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
+			bool WriteAtomic(std::string_view str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
+
+			/**
+			 * @brief Write @p str in chunks until complete or peer closes.
+			 * @param str Data (moved). Empty text succeeds immediately.
+			 * @return true if all data was written.
+			 */
+			bool WriteAtomic(StormByte::String::String&& str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
 
 			/**
 			 * @brief Close the read end.
@@ -209,11 +217,20 @@ namespace StormByte::System {
 			bool operator<<(std::string_view str);
 
 			/**
+			 * @brief Write @p str via WriteAtomic.
+			 * @param str Data.
+			 * @return true if every byte was written.
+			 */
+			bool operator<<(const StormByte::String::String& str) {
+				return *this << static_cast<std::string_view>(str);
+			}
+
+			/**
 			 * @brief Read until EOF into @p str.
 			 * @param str Destination.
 			 * @return Reference to @p str.
 			 */
-			std::string& operator>>(std::string& str) const;
+			StormByte::String::String& operator>>(StormByte::String::String& str) const;
 
 			/**
 			 * @brief Forward all current and future data to another pipe.

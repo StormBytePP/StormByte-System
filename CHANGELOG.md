@@ -26,6 +26,7 @@ If you landed here from a release link and have not read the tree:
 
 - **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
 - **Breaking:** `Device::Window` is `ByteSize`. `Device::Throughput` stores octets per second as `ByteSize`, not `std::size_t`.
+- **Breaking:** `Process::operator>>` and `Stderr` take `StormByte::String::String`, not `std::string`. The captured text is owned by Base. `operator<<(std::ostream&, const Process&)` is `STORMBYTE_FORCE_INLINE`, so the stream buffer grows in the caller. `operator<<` on `Process` and `Pipe` accepts `std::string_view` and `String`. `operator>>` stays `String` only: a view cannot own the bytes that were read.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/2.0.0...HEAD
 
