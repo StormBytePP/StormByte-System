@@ -90,10 +90,10 @@ using Throughput = struct Device::Throughput;
 using Window = struct Device::Window;
 
 namespace {
-	constexpr std::size_t MiB = 1024ull * 1024ull;
-	constexpr std::size_t GiB = 1024ull * MiB;
-	constexpr StormByte::Size MinWindow{16ull * 1024ull};
-	constexpr StormByte::Size MaxWindow{1024ull * 1024ull};
+	constexpr StormByte::ByteSize MiB{1024ull * 1024ull};
+	constexpr StormByte::ByteSize GiB{1024ull * 1024ull * 1024ull};
+	constexpr StormByte::ByteSize MinWindow{16ull * 1024ull};
+	constexpr StormByte::ByteSize MaxWindow{1024ull * 1024ull};
 
 	struct Preset {
 		Kind kind;
@@ -137,15 +137,15 @@ namespace {
 	constexpr Throughput FromLinkBps(const std::uint64_t link_bps) noexcept {
 		if (link_bps == 0)
 			return RateOf(Kind::Network);
-		const std::size_t useful = static_cast<std::size_t>(link_bps * 80ull / 100ull / 8ull);
+		const StormByte::ByteSize useful{link_bps * 80ull / 100ull / 8ull};
 		if (useful == 0)
 			return RateOf(Kind::Network);
 		return { useful, useful };
 	}
 
 	Window WindowFrom(const Throughput& rate) noexcept {
-		auto one = [](const std::size_t bps) noexcept {
-			const StormByte::Size raw{bps / 500ull};
+		auto one = [](const StormByte::ByteSize bps) noexcept {
+			const StormByte::ByteSize raw = bps / 500ull;
 			if (raw < MinWindow)
 				return MinWindow;
 			if (raw > MaxWindow)

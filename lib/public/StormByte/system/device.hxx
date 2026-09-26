@@ -42,7 +42,7 @@
 
 #include <StormByte/bitmask.hxx>
 #include <StormByte/error.hxx>
-#include <StormByte/size.hxx>
+#include <StormByte/byte_size.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/system/visibility.h>
 
@@ -143,11 +143,12 @@ namespace StormByte::System {
 			 * @struct Throughput
 			 * @brief Nominal sequential rates of the resolved medium.
 			 *
-			 * Bytes per second, not byte lengths. Not a benchmark.
+			 * Octets per second as @ref StormByte::ByteSize. Not a buffer length
+			 * and not a benchmark.
 			 */
 			struct Throughput {
-				std::size_t read_bps;	///< Nominal sequential read
-				std::size_t write_bps;	///< Nominal sequential write
+				StormByte::ByteSize read_bps;	///< Nominal sequential read
+				StormByte::ByteSize write_bps;	///< Nominal sequential write
 			};
 
 			/**
@@ -157,8 +158,8 @@ namespace StormByte::System {
 			 * Each side is `bps / 500` clamped to 16 KiB–1 MiB.
 			 */
 			struct Window {
-				StormByte::Size read;	///< Suggested read window
-				StormByte::Size write;	///< Suggested write window
+				StormByte::ByteSize read;	///< Suggested read window
+				StormByte::ByteSize write;	///< Suggested write window
 			};
 
 			/**

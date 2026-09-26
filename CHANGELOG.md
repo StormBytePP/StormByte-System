@@ -22,6 +22,11 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
+- **Breaking:** `Device::Window` is `ByteSize`. `Device::Throughput` stores octets per second as `ByteSize`, not `std::size_t`.
+
 [Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/2.0.0...HEAD
 
 ## [2.0.0] - 2026-09-24

@@ -41,7 +41,7 @@
 #pragma once
 
 #include <StormByte/error.hxx>
-#include <StormByte/size.hxx>
+#include <StormByte/byte_size.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/system/visibility.h>
 
@@ -58,7 +58,7 @@ namespace StormByte::System {
 	 * @c Name returns @c true on success. @c Architecture, @c CPU, @c OS,
 	 * @c Kernel, @c PageSize, @c PhysicalMemory and @c AvailableMemory
 	 * return a value and update @ref LastError. On failure the string is
-	 * empty or the @c Size is zero. @c LogicalProcessors and @c Bitness
+	 * empty or the @c ByteSize is zero. @c LogicalProcessors and @c Bitness
 	 * do not touch @ref LastError.
 	 */
 	namespace Host {
@@ -114,19 +114,19 @@ namespace StormByte::System {
 		 * @brief System page size.
 		 * @return Page size in bytes, or zero on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::Size PageSize();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::ByteSize PageSize();
 
 		/**
 		 * @brief Installed physical memory.
 		 * @return Size in bytes, or zero on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::Size PhysicalMemory();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::ByteSize PhysicalMemory();
 
 		/**
 		 * @brief Currently available physical memory.
 		 * @return Size in bytes, or zero on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::Size AvailableMemory();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::ByteSize AvailableMemory();
 
 		/**
 		 * @brief Logical processor count.
