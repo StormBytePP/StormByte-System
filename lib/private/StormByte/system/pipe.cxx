@@ -316,7 +316,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 	return std::thread([source = std::move(source), destination = std::move(destination), cancelled, on_failure = std::move(on_failure)] {
 #ifdef UNIX
 		StormByte::BinaryData buffer;
-		buffer.resize(StormByte::Size{ MAX_READ_BYTES });
+		buffer.resize(StormByte::ByteSize{ MAX_READ_BYTES });
 		ssize_t bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
@@ -335,7 +335,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 			on_failure();
 #else
 		StormByte::BinaryData buffer;
-		buffer.resize(StormByte::Size{ MAX_READ_BYTES });
+		buffer.resize(StormByte::ByteSize{ MAX_READ_BYTES });
 		DWORD bytes_read;
 		bool forwarding = true;
 		while (forwarding) {
@@ -364,7 +364,7 @@ std::string& Pipe::operator>>(std::string& out) const {
 	DWORD bytes;
 	#endif
 	StormByte::BinaryData buffer;
-	buffer.resize(StormByte::Size{ MAX_READ_BYTES });
+	buffer.resize(StormByte::ByteSize{ MAX_READ_BYTES });
 	while (true) {
 		#ifdef UNIX
 		bytes = Read(buffer, static_cast<ssize_t>(MAX_READ_BYTES));

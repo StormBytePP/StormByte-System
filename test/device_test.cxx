@@ -74,10 +74,10 @@ namespace {
 		std::cout << label << " kind=" << KindName(device.Kind())
 			<< " readable=" << (access.Has(Device::AccessFlag::Readable) ? "true" : "false")
 			<< " writable=" << (access.Has(Device::AccessFlag::Writable) ? "true" : "false")
-			<< " read_bps=" << rate.read_bps
-			<< " write_bps=" << rate.write_bps
-			<< " window_read=" << static_cast<std::size_t>(window.read)
-			<< " window_write=" << static_cast<std::size_t>(window.write)
+			<< " read_bps=" << static_cast<std::uint64_t>(rate.read_bps)
+			<< " write_bps=" << static_cast<std::uint64_t>(rate.write_bps)
+			<< " window_read=" << static_cast<std::uint64_t>(window.read)
+			<< " window_write=" << static_cast<std::uint64_t>(window.write)
 			<< '\n';
 	}
 }

@@ -72,13 +72,13 @@ namespace {
 		return code == Host::Error::Success;
 	}
 
-	StormByte::Size StoreSize(const std::uint64_t bytes, const bool ok) {
+	StormByte::ByteSize StoreSize(const std::uint64_t bytes, const bool ok) {
 		if (!ok || bytes == 0) {
 			Store(Host::Error::Failed);
-			return StormByte::Size{0ull};
+			return StormByte::ByteSize{0ull};
 		}
 		Store(Host::Error::Success);
-		return StormByte::Size{bytes};
+		return StormByte::ByteSize{bytes};
 	}
 
 	StormByte::String::String StoreText(std::string text, const bool ok) {
@@ -278,7 +278,7 @@ StormByte::String::String Host::Kernel() {
 #endif
 }
 
-StormByte::Size Host::PageSize() {
+StormByte::ByteSize Host::PageSize() {
 #ifdef WINDOWS
 	SYSTEM_INFO info {};
 	GetSystemInfo(&info);
@@ -289,7 +289,7 @@ StormByte::Size Host::PageSize() {
 #endif
 }
 
-StormByte::Size Host::PhysicalMemory() {
+StormByte::ByteSize Host::PhysicalMemory() {
 #ifdef WINDOWS
 	MEMORYSTATUSEX status {};
 	status.dwLength = sizeof(status);
@@ -312,7 +312,7 @@ StormByte::Size Host::PhysicalMemory() {
 #endif
 }
 
-StormByte::Size Host::AvailableMemory() {
+StormByte::ByteSize Host::AvailableMemory() {
 #ifdef WINDOWS
 	MEMORYSTATUSEX status {};
 	status.dwLength = sizeof(status);

@@ -97,13 +97,13 @@ int test_host_kernel() {
 int test_host_memory() {
 	const std::string fn = "test_host_memory";
 	const auto page = StormByte::System::Host::PageSize();
-	std::cout << "page_size=" << page.Value()
+	std::cout << "page_size=" << static_cast<std::uint64_t>(page)
 		<< " fault=" << StormByte::System::Host::LastError().what() << '\n';
 	const auto physical = StormByte::System::Host::PhysicalMemory();
-	std::cout << "physical_memory=" << physical.Value()
+	std::cout << "physical_memory=" << static_cast<std::uint64_t>(physical)
 		<< " fault=" << StormByte::System::Host::LastError().what() << '\n';
 	const auto available = StormByte::System::Host::AvailableMemory();
-	std::cout << "available_memory=" << available.Value()
+	std::cout << "available_memory=" << static_cast<std::uint64_t>(available)
 		<< " fault=" << StormByte::System::Host::LastError().what() << '\n';
 	RETURN_TEST(fn, 0);
 }
