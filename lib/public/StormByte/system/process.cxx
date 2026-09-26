@@ -84,7 +84,7 @@ Process::Process(const std::filesystem::path& prog, const std::vector<StormByte:
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
-	m_implementation->m_program = prog;
+	m_implementation->m_program = std::filesystem::path(prog.native());
 	m_implementation->m_arguments = NarrowArgs(args);
 #ifdef WINDOWS
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
@@ -106,7 +106,7 @@ Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::St
 	m_implementation->m_pstdout = std::make_shared<Pipe>();
 	m_implementation->m_pstdin = std::make_shared<Pipe>();
 	m_implementation->m_pstderr = std::make_shared<Pipe>();
-	m_implementation->m_program = std::move(prog);
+	m_implementation->m_program = std::filesystem::path(prog.native());
 	m_implementation->m_arguments = NarrowArgs(args);
 #ifdef WINDOWS
 	ZeroMemory(&m_implementation->m_siStartInfo, sizeof(STARTUPINFOW));
