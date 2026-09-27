@@ -30,9 +30,9 @@ Spawn children with piped stdin/stdout/stderr, classify the medium behind a path
 	- [Expand variables](#expand-variables)
 - [Design notes](#design-notes)
 - [Testing](#testing)
-- [Support](#support)
 - [Contributing](#contributing)
 - [License](#license)
+- [Support](#support)
 
 ## Repository
 
@@ -48,7 +48,7 @@ cmake --build build -j
 cmake --install build
 ```
 
-Shared vs static follows CMake `BUILD_SHARED_LIBS`. Leave it on (or pass `-DBUILD_SHARED_LIBS=ON`) for a shared library. `-DBUILD_SHARED_LIBS=OFF` builds a static archive; on Windows the headers then do not use `dllimport`. Vendored StormByte-String (and Base through String) follows the same mode.
+Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). A plain configure builds the shared library. `-DBUILD_SHARED_LIBS=OFF` builds a static archive; on Windows the headers then do not use `dllimport`. Vendored StormByte-String (and Base through String) follows the same mode.
 
 A shared build keeps this library as its own `.so` / `.dll`. Under the LGPL that is usually the simpler way to ship: the user can replace that file. A static archive is folded into your binary. The LGPL still applies to this code; you must give the recipient a way to relink your product with a different build of this library. If that does not fit how you distribute the final product, a commercial license is available from the copyright holder (see [License](#license)).
 
@@ -252,21 +252,25 @@ A failed Windows expand returns the original text (same idea as a missing UNIX `
 
 Enable tests in CMake (`ENABLE_TEST`) and run CTest from the build tree. Device, Directory, File, Host and ThisThread print probe data and always return success (the machine is not a fixture). Process tests assert error codes. Use `ctest -V` to see stdout.
 
-## Support
-
-If StormByte is useful to you, you can sponsor development on [GitHub Sponsors](https://github.com/sponsors/StormBytePP).
-
 ## Contributing
 
-Issues on GitHub. No wiki, no discussions. See [CONTRIBUTING.md](CONTRIBUTING.md) for coding style (StormByte flavor) and copyright assignment to the owner.
+Issues and pull requests belong on this repository. Fork and open a PR against `master`.
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before you send a patch (copyright assignment and review rules). Coding rules are in [CODING_STYLE.md](CODING_STYLE.md) when that file exists.
 
 ## License
 
-Original StormByte-System sources are dual-licensed: GNU Lesser General Public License v3 or later **or** a commercial license from the copyright holder.
+Original StormByte-System sources are dual-licensed: GNU Lesser General Public License v3 or later **or** a commercial license from the copyright holder (David C. Manuelda <StormByte@gmail.com>).
 
-- [LICENSE](LICENSE) — dual-license notice
-- [COPYING.LGPLv3](COPYING.LGPLv3) — LGPL-3.0 text
+The grant applies only to original StormByte-System source in this repository. It does not cover other StormByte modules or third-party material shipped here (including everything under `thirdparty/`), which remains under its own license. Neither license grants patent rights.
 
-Bundled third-party trees (including Base under `thirdparty/`) keep their own licenses.
+See [LICENSE](LICENSE) for the dual-license notice and [COPYING.LGPLv3](COPYING.LGPLv3) for the full GNU LGPL version 3 text. Also <https://www.gnu.org/licenses/lgpl-3.0.html>.
 
 Static linking under the LGPL is described under [Installation](#installation).
+
+## Support
+
+StormByte is developed in spare time. Sponsorship is optional and does not buy features, priority or support.
+
+- [GitHub Sponsors](https://github.com/sponsors/StormBytePP)
+- [PayPal](https://paypal.me/StormBytePP)

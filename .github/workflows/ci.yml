@@ -78,6 +78,7 @@ jobs:
           configure-options: >-
             -DENABLE_TEST=ON
             -DWITH_STORMBYTE=BUNDLED
+            -DBUILD_SHARED_LIBS=ON
             ${{ matrix.compiler == 'clang-libc++' && '-DCMAKE_CXX_FLAGS=-stdlib=libc++' || '' }}
           run-tests: true
           ctest-options: --output-on-failure --test-dir ${{ github.workspace }}/build/test
@@ -112,6 +113,7 @@ jobs:
           configure-options: >-
             -DENABLE_TEST=ON
             -DWITH_STORMBYTE=BUNDLED
+            -DBUILD_SHARED_LIBS=ON
           run-tests: true
           ctest-options: --output-on-failure --test-dir ${{ github.workspace }}/build/test
 
@@ -145,6 +147,7 @@ jobs:
           configure-options: >-
             -DENABLE_TEST=ON
             -DWITH_STORMBYTE=BUNDLED
+            -DBUILD_SHARED_LIBS=ON
           run-tests: true
           ctest-options: --output-on-failure --test-dir ${{ github.workspace }}/build/test
 

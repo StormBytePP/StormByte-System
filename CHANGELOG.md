@@ -28,7 +28,6 @@ If you landed here from a release link and have not read the tree:
 
 ### Added
 
-- Shared vs static follows CMake `BUILD_SHARED_LIBS`. There is no `STORMBYTE_SYSTEM_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_SYSTEM_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
 - **Device**: classify the medium behind a path (`Kind`, `Access` bitmask, nominal `Throughput`, suggested `Window`).
     - Copyable; stores only the caller accessor as `StormByte::String::String`.
     - Probe is on-demand. `operator bool` is probe success, not permission.
@@ -38,11 +37,10 @@ If you landed here from a release link and have not read the tree:
 - **Host**: name, architecture, CPU brand, OS, kernel, page size, physical/available memory, logical processors, process bitness.
 - **ThisThread**: `Sleep`; get/set thread name (`TooLong` if the platform limit is exceeded; the name is not truncated).
 - Dual license on original System sources: LGPL-3.0-or-later **or** commercial (`LICENSE` + `COPYING.LGPLv3`).
-- `STORMBYTE_SYSTEM_SHARED` CMake option (default ON) so a static Windows consumer does not see `dllimport`.
+- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). There is no `STORMBYTE_SYSTEM_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_SYSTEM_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
 
 ### Changed
 
-- Shared vs static is `BUILD_SHARED_LIBS`, not a module-specific option (see Added).
 - **Breaking:** Process no longer throws. Spawn, wait and stdin failures are `StormByte::System::Process::Error` in domain `StormByte.System.Process`, held as `Fault()`.
     - `operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`).
     - Timed `Wait` sets `TimedOut` and leaves the child running. A second wait after a successful reap sets `AlreadyExited`.

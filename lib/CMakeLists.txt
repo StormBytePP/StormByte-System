@@ -1,5 +1,7 @@
 include(GNUInstallDirs)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+
 file(GLOB_RECURSE STORMBYTE_SYSTEM_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
 
 if(BUILD_SHARED_LIBS)
