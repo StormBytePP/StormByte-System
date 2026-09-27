@@ -1,10 +1,8 @@
 include(GNUInstallDirs)
 
-option(STORMBYTE_SYSTEM_SHARED "Build StormByte-System as a shared library" ON)
-
 file(GLOB_RECURSE STORMBYTE_SYSTEM_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
 
-if(STORMBYTE_SYSTEM_SHARED)
+if(BUILD_SHARED_LIBS)
 	add_library(StormByte-System SHARED ${STORMBYTE_SYSTEM_SOURCES})
 	target_compile_definitions(StormByte-System PUBLIC STORMBYTE_SYSTEM_SHARED)
 else()

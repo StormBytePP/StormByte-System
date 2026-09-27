@@ -28,6 +28,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Added
 
+- Shared vs static follows CMake `BUILD_SHARED_LIBS`. There is no `STORMBYTE_SYSTEM_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_SYSTEM_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
 - **Device**: classify the medium behind a path (`Kind`, `Access` bitmask, nominal `Throughput`, suggested `Window`).
     - Copyable; stores only the caller accessor as `StormByte::String::String`.
     - Probe is on-demand. `operator bool` is probe success, not permission.
@@ -41,6 +42,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Changed
 
+- Shared vs static is `BUILD_SHARED_LIBS`, not a module-specific option (see Added).
 - **Breaking:** Process no longer throws. Spawn, wait and stdin failures are `StormByte::System::Process::Error` in domain `StormByte.System.Process`, held as `Fault()`.
     - `operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`).
     - Timed `Wait` sets `TimedOut` and leaves the child running. A second wait after a successful reap sets `AlreadyExited`.
