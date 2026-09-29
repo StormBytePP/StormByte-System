@@ -1,5 +1,5 @@
-[submodule "StormByte BuildMaster"]
-	path = thirdparty/buildmaster
+[submodule "BuildMaster"]
+	path = buildmaster
 	url = https://github.com/StormBytePP/StormByte-BuildMaster.git
 [submodule "StormByte Suite - String"]
 	path = thirdparty/StormByte/string/src
