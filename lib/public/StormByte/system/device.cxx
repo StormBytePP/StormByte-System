@@ -41,7 +41,7 @@
 #include <StormByte/system/device.hxx>
 
 #include <StormByte/error.txx>
-#include <StormByte/string/wstring.hxx>
+#include <StormByte/safe/wstring.hxx>
 
 #include <array>
 #include <cctype>
@@ -168,9 +168,9 @@ namespace {
 			t == "9p" || t == "afs" || t.find("fuse") != std::string::npos;
 	}
 
-	std::filesystem::path NativePath(const StormByte::String::String& text) {
+	std::filesystem::path NativePath(const StormByte::Safe::String& text) {
 #ifdef WINDOWS
-		const StormByte::String::WString wide(text);
+		const StormByte::Safe::WString wide(text);
 		return std::filesystem::path(static_cast<std::wstring_view>(wide));
 #else
 		return std::filesystem::path(static_cast<std::string_view>(text));
@@ -717,7 +717,7 @@ namespace {
 	}
 #endif
 
-	Snapshot Probe(const StormByte::String::String& text) noexcept {
+	Snapshot Probe(const StormByte::Safe::String& text) noexcept {
 		if (static_cast<std::string_view>(text).empty())
 			return Fail(Device::Error::DeviceNotFound);
 		const auto path = NativePath(text);
@@ -734,14 +734,14 @@ namespace {
 	}
 }
 
-Device::Device(const StormByte::String::String& path) noexcept:
+Device::Device(const StormByte::Safe::String& path) noexcept:
 	m_path(path) {}
 
 Device::Device(const std::string_view path) noexcept:
 	m_path(path) {}
 
 Device::Device(const std::wstring_view path) noexcept:
-	m_path(StormByte::String::String(StormByte::String::WString(path))) {}
+	m_path(StormByte::Safe::String(StormByte::Safe::WString(path))) {}
 
 Device::Device(const std::filesystem::path& path) noexcept:
 	Device(std::wstring_view(path.wstring())) {}
@@ -754,7 +754,7 @@ StormByte::Error::Fault Device::Fault() const noexcept {
 	return Probe(m_path).fault;
 }
 
-const StormByte::String::String& Device::Path() const noexcept {
+const StormByte::Safe::String& Device::Path() const noexcept {
 	return m_path;
 }
 

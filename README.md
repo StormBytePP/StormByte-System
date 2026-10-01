@@ -107,7 +107,7 @@ A shared build keeps this library as its own `.so` / `.dll`. Under the LGPL that
 | `File` | `Temporary(prefix, suffix)` (caller unlinks) and `CurrentExecutable`. Same `bool` + `LastError` contract. |
 | `Host` | `Name`, `Architecture`, `CPU`, `OS`, `Kernel`, `PageSize`, `PhysicalMemory`, `AvailableMemory`, `LogicalProcessors`, `Bitness`. |
 | `ThisThread` | `Sleep`; `Name` get/set. Set returns `false` and `TooLong` if the platform limit is exceeded. |
-| `Variable` | Expand environment strings to `StormByte::String::String`. |
+| `Variable` | Expand environment strings to `StormByte::Safe::String`. |
 | `System::EoF` | Close process stdin. |
 
 `Pipe` is private. There is no `StormByte/system/exception.hxx` and no generic `StormByte.System` error domain.
@@ -127,10 +127,10 @@ if (!missing) {
 		/* spawn failed */;
 }
 
-Process echo("echo", {StormByte::String::String("hello")});
+Process echo("echo", {StormByte::Safe::String("hello")});
 if (!echo)
 	return;
-StormByte::String::String out;
+StormByte::Safe::String out;
 echo >> out;
 if (echo.Wait() != 0)
 	/* child status */;
@@ -143,11 +143,11 @@ On Windows use a real binary (`cmd.exe`, `where.exe`) instead of `echo` if it is
 ### Pipe two processes
 
 ```cpp
-Process producer("printf", {StormByte::String::String("%s"), StormByte::String::String("hello\n")});
-Process consumer("tr", {StormByte::String::String("a-z"), StormByte::String::String("A-Z")});
+Process producer("printf", {StormByte::Safe::String("%s"), StormByte::Safe::String("hello\n")});
+Process consumer("tr", {StormByte::Safe::String("a-z"), StormByte::Safe::String("A-Z")});
 producer >> consumer;
 producer << StormByte::System::EoF;
-StormByte::String::String out;
+StormByte::Safe::String out;
 consumer >> out;
 producer.Wait();
 consumer.Wait();
@@ -177,7 +177,7 @@ On Windows pass `C:\\`. `operator bool` is not “can write”. A special device
 #include <StormByte/system/directory.hxx>
 #include <StormByte/system/file.hxx>
 
-StormByte::String::String cwd, home, tmpdir, exe_dir, exe, scratch;
+StormByte::Safe::String cwd, home, tmpdir, exe_dir, exe, scratch;
 if (!StormByte::System::Directory::Current(cwd))
 	/* Directory::LastError() */;
 StormByte::System::Directory::Home(home);
@@ -196,7 +196,7 @@ Windows `File::Temporary` only uses the first three characters of the prefix (`G
 ```cpp
 #include <StormByte/system/host.hxx>
 
-StormByte::String::String hostname;
+StormByte::Safe::String hostname;
 StormByte::System::Host::Name(hostname);
 auto os = StormByte::System::Host::OS();       // "Gentoo 2.18", "Windows 11", "macOS 15.1"
 auto kernel = StormByte::System::Host::Kernel(); // "Linux … SMP PREEMPT_DYNAMIC", "NT 10.0.26100", "Darwin …"
@@ -218,7 +218,7 @@ StormByte::System::ThisThread::Sleep(std::chrono::milliseconds(10));
 if (!StormByte::System::ThisThread::Name("worker-1")) {
 	/* TooLong or Failed; LastError() */
 }
-StormByte::String::String name;
+StormByte::Safe::String name;
 StormByte::System::ThisThread::Name(name);
 ```
 
@@ -244,7 +244,7 @@ A failed Windows expand returns the original text (same idea as a missing UNIX `
 - Windows stdio handles are made non-inheritable after `CreateProcessW`; a short inheritance window exists during creation.
 - `Device` stores only the caller accessor. Kind/Access/Throughput/Window are valid only when the Device converts to `true`.
 - `Directory` / `File` / `Host` / `ThisThread` `LastError()` is `thread_local` inside this module, exposed by an exported getter. Do not put `thread_local` in a public header.
-- Public text across a DLL boundary is `StormByte::String::String` / `CString`.
+- Public text across a DLL boundary is `StormByte::Safe::String` / `StormByte::Safe::CString`.
 - Destructor of `Process` waits if the child is still owned. Move invalidates the source.
 
 ## Testing

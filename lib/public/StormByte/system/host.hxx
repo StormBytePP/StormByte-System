@@ -42,7 +42,7 @@
 
 #include <StormByte/error.hxx>
 #include <StormByte/byte_size.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <string>
@@ -84,31 +84,31 @@ namespace StormByte::System {
 		 * @param[out] name Owned UTF-8 text. Written only on success.
 		 * @return true if the name was read.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool Name(StormByte::String::String& name);
+		STORMBYTE_SYSTEM_PUBLIC bool Name(StormByte::Safe::String& name);
 
 		/**
 		 * @brief Instruction-set name of this machine.
 		 * @return `x86_64`, `arm64`, `x86` or another platform token. Empty on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::String::String Architecture();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::Safe::String Architecture();
 
 		/**
 		 * @brief Processor brand string.
 		 * @return Brand text. Empty on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::String::String CPU();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::Safe::String CPU();
 
 		/**
 		 * @brief Operating system brand and version.
 		 * @return Text such as `Gentoo 2.18`, `Windows 11` or `macOS 15.1`. Empty on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::String::String OS();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::Safe::String OS();
 
 		/**
 		 * @brief Kernel identification.
 		 * @return Text such as `Linux 7.2.7 SMP PREEMPT_DYNAMIC`, `NT 10.0.26100` or `Darwin 24.1.0`. Empty on failure.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC StormByte::String::String Kernel();
+		STORMBYTE_SYSTEM_PUBLIC StormByte::Safe::String Kernel();
 
 		/**
 		 * @brief System page size.

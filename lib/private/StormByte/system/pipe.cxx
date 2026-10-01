@@ -312,7 +312,7 @@ bool Pipe::operator<<(std::string_view data) {
 	return WriteAtomic(data);
 }
 
-bool Pipe::WriteAtomic(StormByte::String::String&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
+bool Pipe::WriteAtomic(StormByte::Safe::String&& data, const std::shared_ptr<std::atomic_bool>& cancelled) {
 	return WriteAtomic(static_cast<std::string_view>(data), cancelled);
 }
 
@@ -361,7 +361,7 @@ std::thread Pipe::Connect(std::shared_ptr<Pipe> source, std::shared_ptr<Pipe> de
 	});
 }
 
-StormByte::String::String& Pipe::operator>>(StormByte::String::String& out) const {
+StormByte::Safe::String& Pipe::operator>>(StormByte::Safe::String& out) const {
 	#ifdef UNIX
 	ssize_t bytes;
 	#else
@@ -388,7 +388,7 @@ StormByte::String::String& Pipe::operator>>(StormByte::String::String& out) cons
 			merged.append(raw);
 			raw = std::move(merged);
 		}
-		out = StormByte::String::String(std::string_view(raw));
+		out = StormByte::Safe::String(std::string_view(raw));
 	}
 	return out;
 }

@@ -41,7 +41,7 @@
 #pragma once
 
 #include <StormByte/error.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <string>
@@ -91,7 +91,7 @@ namespace StormByte::System {
 		 * after the generated name when it is not empty.
 		 */
 		STORMBYTE_SYSTEM_PUBLIC bool Temporary(
-			StormByte::String::String& path,
+			StormByte::Safe::String& path,
 			std::string_view prefix = "TMP",
 			std::string_view suffix = {}
 		);
@@ -101,7 +101,7 @@ namespace StormByte::System {
 		 * @param[out] path Absolute file path. Written only on success.
 		 * @return true if the path was resolved.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool CurrentExecutable(StormByte::String::String& path);
+		STORMBYTE_SYSTEM_PUBLIC bool CurrentExecutable(StormByte::Safe::String& path);
 	}
 }
 

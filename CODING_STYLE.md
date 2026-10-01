@@ -6,7 +6,7 @@ This is the flavor used in Base. Other suite modules follow it unless their own 
 
 Headers are `.hxx`, sources `.cxx`, template bodies `.txx` included at the bottom of the header. Start every C or C++ file with `#pragma once` in the header and with the license banner used in this repository, unchanged. CMake and Markdown do not take that banner.
 
-Include `StormByte/…` first, then a blank line, then the standard library. Do not `using namespace` in a header. `using namespace StormByte;` in a `.cxx` after the includes is fine. Do not `using StormByte::String::String`: the namespace name hides the class.
+Include `StormByte/…` first, then a blank line, then the standard library. Do not `using namespace` in a header. `using namespace StormByte;` in a `.cxx` after the includes is fine.
 
 Indent with tabs. Spaces for indentation are wrong. Do not mix them to line up code; Doxygen `///<` on members may share a column by using tabs.
 
@@ -54,11 +54,11 @@ A class keeps the attribute on the type: `class STORMBYTE_SYSTEM_PUBLIC Process`
 
 Do not repeat `STORMBYTE_SYSTEM_PUBLIC` on an ordinary `.cxx` definition. Do not put `dllexport` on a member of a class that is already exported.
 
-Values that leave the shared library are `StormByte::String::String`, `CString`, `WCString`, `Size`, or a `const char*` owned by this library. Do not return `std::string` by value across a DLL boundary. Do not put `std::string` fields on a class another module can inherit (`Process` keeps state in a private PIMPL).
+Values that leave the shared library are `StormByte::Safe::String`, `StormByte::Safe::WString`, `StormByte::Safe::CString`, `StormByte::Safe::WCString`, `Size`, or a `const char*` owned by this library. Do not return `std::string` by value across a DLL boundary. Do not put `std::string` fields on a class another module can inherit (`Process` keeps state in a private PIMPL).
 
 ## Doxygen
 
-Document every public declaration except `= delete`. Large classes use `@name` groups. `@ref` uses the qualified name (`StormByte::System::Process`, `StormByte::String::String`). Align member `///<` comments to the same column when they fit.
+Document every public declaration except `= delete`. Large classes use `@name` groups. `@ref` uses the qualified name (`StormByte::System::Process`, `StormByte::Safe::String`). Align member `///<` comments to the same column when they fit.
 
 Wrap `extern template` noise in `/// @cond` / `/// @endcond` so it does not show up as a page of instantiations.
 

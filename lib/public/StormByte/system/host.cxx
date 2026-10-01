@@ -41,7 +41,7 @@
 #include <StormByte/system/host.hxx>
 
 #include <StormByte/error.txx>
-#include <StormByte/string/wstring.hxx>
+#include <StormByte/safe/wstring.hxx>
 
 #include <sstream>
 #include <string>
@@ -81,25 +81,25 @@ namespace {
 		return StormByte::ByteSize{bytes};
 	}
 
-	StormByte::String::String StoreText(std::string text, const bool ok) {
+	StormByte::Safe::String StoreText(std::string text, const bool ok) {
 		if (!ok || text.empty()) {
 			Store(Host::Error::Failed);
-			return StormByte::String::String();
+			return StormByte::Safe::String();
 		}
 		Store(Host::Error::Success);
-		return StormByte::String::String(text);
+		return StormByte::Safe::String(text);
 	}
 
-	StormByte::String::String NormalizeArch(std::string_view raw) {
+	StormByte::Safe::String NormalizeArch(std::string_view raw) {
 		if (raw == "x86_64" || raw == "amd64" || raw == "AMD64")
-			return StormByte::String::String("x86_64");
+			return StormByte::Safe::String("x86_64");
 		if (raw == "aarch64" || raw == "arm64" || raw == "ARM64")
-			return StormByte::String::String("arm64");
+			return StormByte::Safe::String("arm64");
 		if (raw == "x86" || raw == "i386" || raw == "i686" || raw == "i586")
-			return StormByte::String::String("x86");
+			return StormByte::Safe::String("x86");
 		if (raw == "arm" || raw.rfind("armv", 0) == 0)
-			return StormByte::String::String("arm");
-		return StormByte::String::String(raw);
+			return StormByte::Safe::String("arm");
+		return StormByte::Safe::String(raw);
 	}
 
 #ifdef LINUX
@@ -129,7 +129,7 @@ StormByte::Error::Fault Host::LastError() noexcept {
 	return g_last;
 }
 
-bool Host::Name(StormByte::String::String& name) {
+bool Host::Name(StormByte::Safe::String& name) {
 #ifdef WINDOWS
 	DWORD size = 0;
 	GetComputerNameExW(ComputerNamePhysicalDnsHostname, nullptr, &size);
@@ -138,19 +138,19 @@ bool Host::Name(StormByte::String::String& name) {
 	std::vector<wchar_t> buffer(size);
 	if (!GetComputerNameExW(ComputerNamePhysicalDnsHostname, buffer.data(), &size))
 		return Store(Host::Error::Failed);
-	name = StormByte::String::String(StormByte::String::WString(std::wstring_view(buffer.data())));
+	name = StormByte::Safe::String(StormByte::Safe::WString(std::wstring_view(buffer.data())));
 	return Store(Host::Error::Success);
 #else
 	char buffer[256] = {};
 	if (gethostname(buffer, sizeof(buffer)) != 0)
 		return Store(Host::Error::Failed);
 	buffer[sizeof(buffer) - 1] = '\0';
-	name = StormByte::String::String(std::string_view(buffer));
+	name = StormByte::Safe::String(std::string_view(buffer));
 	return Store(Host::Error::Success);
 #endif
 }
 
-StormByte::String::String Host::Architecture() {
+StormByte::Safe::String Host::Architecture() {
 #ifdef WINDOWS
 	SYSTEM_INFO info {};
 	GetNativeSystemInfo(&info);
@@ -174,7 +174,7 @@ StormByte::String::String Host::Architecture() {
 #endif
 }
 
-StormByte::String::String Host::CPU() {
+StormByte::Safe::String Host::CPU() {
 #ifdef WINDOWS
 	wchar_t value[512];
 	DWORD size = sizeof(value);
@@ -182,7 +182,7 @@ StormByte::String::String Host::CPU() {
 			L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0",
 			L"ProcessorNameString", RRF_RT_REG_SZ, nullptr, value, &size) != ERROR_SUCCESS)
 		return StoreText({}, false);
-	return StoreText(std::string(StormByte::String::String(StormByte::String::WString(value))), true);
+	return StoreText(std::string(StormByte::Safe::String(StormByte::Safe::WString(value))), true);
 #elifdef MACOS
 	char brand[256] = {};
 	std::size_t len = sizeof(brand);
@@ -209,7 +209,7 @@ StormByte::String::String Host::CPU() {
 #endif
 }
 
-StormByte::String::String Host::OS() {
+StormByte::Safe::String Host::OS() {
 #ifdef WINDOWS
 	using RtlGetVersionFn = LONG (WINAPI*)(OSVERSIONINFOW*);
 	const auto rtl = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));
@@ -244,7 +244,7 @@ StormByte::String::String Host::OS() {
 #endif
 }
 
-StormByte::String::String Host::Kernel() {
+StormByte::Safe::String Host::Kernel() {
 #ifdef WINDOWS
 	using RtlGetVersionFn = LONG (WINAPI*)(OSVERSIONINFOW*);
 	const auto rtl = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion"));

@@ -40,11 +40,11 @@
 
 #pragma once
 
-#include <StormByte/cstring.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/cstring.hxx>
+#include <StormByte/safe/string.hxx>
 #ifdef WINDOWS
-#include <StormByte/string/wstring.hxx>
-#include <StormByte/wcstring.hxx>
+#include <StormByte/safe/wstring.hxx>
+#include <StormByte/safe/wcstring.hxx>
 #endif
 #include <StormByte/system/visibility.h>
 
@@ -65,21 +65,21 @@ namespace StormByte::System {
 			 * @param str Input.
 			 * @return Expanded owned text.
 			 */
-			static StormByte::String::String Expand(std::string_view str);
+			static StormByte::Safe::String Expand(std::string_view str);
 
 			/**
 			 * @brief Expand environment variables in owned UTF-8 text.
 			 * @param str Input.
 			 * @return Expanded owned text.
 			 */
-			static StormByte::String::String Expand(const StormByte::String::String& str);
+			static StormByte::Safe::String Expand(const StormByte::Safe::String& str);
 
 			/**
 			 * @brief Expand environment variables in a CString.
 			 * @param str Input.
 			 * @return Expanded owned text.
 			 */
-			static StormByte::String::String Expand(const StormByte::CString& str);
+			static StormByte::Safe::String Expand(const StormByte::Safe::CString& str);
 
 			#ifdef WINDOWS
 			/**
@@ -87,21 +87,21 @@ namespace StormByte::System {
 			 * @param str Input.
 			 * @return Expanded owned UTF-8 text.
 			 */
-			static StormByte::String::String Expand(std::wstring_view str);
+			static StormByte::Safe::String Expand(std::wstring_view str);
 
 			/**
 			 * @brief Expand environment variables in owned wide text.
 			 * @param str Input.
 			 * @return Expanded owned UTF-8 text.
 			 */
-			static StormByte::String::String Expand(const StormByte::String::WString& str);
+			static StormByte::Safe::String Expand(const StormByte::Safe::WString& str);
 
 			/**
 			 * @brief Expand environment variables in a WCString.
 			 * @param str Input.
 			 * @return Expanded owned UTF-8 text.
 			 */
-			static StormByte::String::String Expand(const StormByte::WCString& str);
+			static StormByte::Safe::String Expand(const StormByte::Safe::WCString& str);
 			#endif
 
 		private:
@@ -110,7 +110,7 @@ namespace StormByte::System {
 			 * @param str Input.
 			 * @return Expanded owned text.
 			 */
-			static StormByte::String::String ExpandEnvironmentVariable(std::string_view str);
+			static StormByte::Safe::String ExpandEnvironmentVariable(std::string_view str);
 
 			#ifdef WINDOWS
 			/**
@@ -118,7 +118,7 @@ namespace StormByte::System {
 			 * @param str Input.
 			 * @return Expanded owned UTF-8 text.
 			 */
-			static StormByte::String::String ExpandEnvironmentVariable(std::wstring_view str);
+			static StormByte::Safe::String ExpandEnvironmentVariable(std::wstring_view str);
 			#else
 			/**
 			 * @brief Current user home directory.

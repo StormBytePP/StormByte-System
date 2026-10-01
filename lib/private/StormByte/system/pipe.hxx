@@ -41,7 +41,7 @@
 #pragma once
 
 #include <StormByte/binary_data.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <atomic>
@@ -197,7 +197,7 @@ namespace StormByte::System {
 			 * @param str Data (moved). Empty text succeeds immediately.
 			 * @return true if all data was written.
 			 */
-			bool WriteAtomic(StormByte::String::String&& str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
+			bool WriteAtomic(StormByte::Safe::String&& str, const std::shared_ptr<std::atomic_bool>& cancelled = {});
 
 			/**
 			 * @brief Close the read end.
@@ -221,7 +221,7 @@ namespace StormByte::System {
 			 * @param str Data.
 			 * @return true if every byte was written.
 			 */
-			bool operator<<(const StormByte::String::String& str) {
+			bool operator<<(const StormByte::Safe::String& str) {
 				return *this << static_cast<std::string_view>(str);
 			}
 
@@ -230,7 +230,7 @@ namespace StormByte::System {
 			 * @param str Destination.
 			 * @return Reference to @p str.
 			 */
-			StormByte::String::String& operator>>(StormByte::String::String& str) const;
+			StormByte::Safe::String& operator>>(StormByte::Safe::String& str) const;
 
 			/**
 			 * @brief Forward all current and future data to another pipe.

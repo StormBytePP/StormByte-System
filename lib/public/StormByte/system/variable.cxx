@@ -52,59 +52,59 @@
 
 using namespace StormByte::System;
 
-StormByte::String::String Variable::Expand(std::string_view var) {
+StormByte::Safe::String Variable::Expand(std::string_view var) {
 	return ExpandEnvironmentVariable(var);
 }
 
-StormByte::String::String Variable::Expand(const StormByte::String::String& var) {
+StormByte::Safe::String Variable::Expand(const StormByte::Safe::String& var) {
 	return ExpandEnvironmentVariable(std::string_view(var));
 }
 
-StormByte::String::String Variable::Expand(const StormByte::CString& var) {
+StormByte::Safe::String Variable::Expand(const StormByte::Safe::CString& var) {
 	return ExpandEnvironmentVariable(static_cast<std::string_view>(var));
 }
 
 #ifdef WINDOWS
-StormByte::String::String Variable::Expand(std::wstring_view var) {
+StormByte::Safe::String Variable::Expand(std::wstring_view var) {
 	return ExpandEnvironmentVariable(var);
 }
 
-StormByte::String::String Variable::Expand(const StormByte::String::WString& var) {
+StormByte::Safe::String Variable::Expand(const StormByte::Safe::WString& var) {
 	return ExpandEnvironmentVariable(std::wstring_view(var));
 }
 
-StormByte::String::String Variable::Expand(const StormByte::WCString& var) {
+StormByte::Safe::String Variable::Expand(const StormByte::Safe::WCString& var) {
 	return ExpandEnvironmentVariable(static_cast<std::wstring_view>(var));
 }
 #endif
 
-StormByte::String::String Variable::ExpandEnvironmentVariable(std::string_view var) {
+StormByte::Safe::String Variable::ExpandEnvironmentVariable(std::string_view var) {
 	#ifdef WINDOWS
-	return ExpandEnvironmentVariable(std::wstring_view(static_cast<StormByte::String::WString>(StormByte::String::String(var))));
+	return ExpandEnvironmentVariable(std::wstring_view(static_cast<StormByte::Safe::WString>(StormByte::Safe::String(var))));
 	#else
 	if (var != "~" && (var.size() < 2 || var[0] != '~' || var[1] != '/'))
-		return StormByte::String::String(var);
+		return StormByte::Safe::String(var);
 	const std::filesystem::path home = HomePath();
 	if (home.empty())
-		return StormByte::String::String(var);
+		return StormByte::Safe::String(var);
 	if (var.size() == 1)
-		return StormByte::String::String(home.string());
-	return StormByte::String::String(home.string() + std::string(var.substr(1)));
+		return StormByte::Safe::String(home.string());
+	return StormByte::Safe::String(home.string() + std::string(var.substr(1)));
 	#endif
 }
 
 #ifdef WINDOWS
-StormByte::String::String Variable::ExpandEnvironmentVariable(std::wstring_view var) {
+StormByte::Safe::String Variable::ExpandEnvironmentVariable(std::wstring_view var) {
 	DWORD size = ::ExpandEnvironmentStringsW(var.data(), nullptr, 0);
 	if (size == 0)
-		return StormByte::String::String(StormByte::String::WString(var));
+		return StormByte::Safe::String(StormByte::Safe::WString(var));
 	std::vector<wchar_t> buffer(size);
 	while (true) {
 		const DWORD result = ::ExpandEnvironmentStringsW(var.data(), buffer.data(), static_cast<DWORD>(buffer.size()));
 		if (result == 0)
-			return StormByte::String::String(StormByte::String::WString(var));
+			return StormByte::Safe::String(StormByte::Safe::WString(var));
 		if (result <= buffer.size())
-			return StormByte::String::String(StormByte::String::WString(std::wstring_view(buffer.data(), result - 1)));
+			return StormByte::Safe::String(StormByte::Safe::WString(std::wstring_view(buffer.data(), result - 1)));
 		buffer.resize(result);
 	}
 }

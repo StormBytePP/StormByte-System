@@ -41,7 +41,7 @@
 #include <StormByte/system/this_thread.hxx>
 
 #include <StormByte/error.txx>
-#include <StormByte/string/wstring.hxx>
+#include <StormByte/safe/wstring.hxx>
 
 #ifdef WINDOWS
 #include <windows.h>
@@ -70,8 +70,8 @@ bool ThisThread::Name(std::string_view name) {
 	if (name.empty() || name.find('\0') != std::string_view::npos)
 		return Store(ThisThread::Error::Failed);
 #ifdef WINDOWS
-	const StormByte::String::String utf8(name);
-	const StormByte::String::WString wide(utf8);
+	const StormByte::Safe::String utf8(name);
+	const StormByte::Safe::WString wide(utf8);
 	if (FAILED(SetThreadDescription(GetCurrentThread(), static_cast<const wchar_t*>(wide))))
 		return Store(ThisThread::Error::Failed);
 	return Store(ThisThread::Error::Success);
@@ -90,19 +90,19 @@ bool ThisThread::Name(std::string_view name) {
 #endif
 }
 
-bool ThisThread::Name(StormByte::String::String& name) {
+bool ThisThread::Name(StormByte::Safe::String& name) {
 #ifdef WINDOWS
 	PWSTR wide = nullptr;
 	if (FAILED(GetThreadDescription(GetCurrentThread(), &wide)) || wide == nullptr)
 		return Store(ThisThread::Error::Failed);
-	name = StormByte::String::String(StormByte::String::WString(wide));
+	name = StormByte::Safe::String(StormByte::Safe::WString(wide));
 	LocalFree(wide);
 	return Store(ThisThread::Error::Success);
 #else
 	char buffer[UnixNameLimit + 1] = {};
 	if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) != 0)
 		return Store(ThisThread::Error::Failed);
-	name = StormByte::String::String(std::string_view(buffer));
+	name = StormByte::Safe::String(std::string_view(buffer));
 	return Store(ThisThread::Error::Success);
 #endif
 }

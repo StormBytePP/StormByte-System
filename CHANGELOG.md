@@ -11,7 +11,7 @@ StormByte System is the C++26 process, device and host layer of the StormByte su
 
 It depends directly on [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia or Network.
 
-Spawn children with piped stdin/stdout/stderr, classify the medium behind a path, resolve directories and the current executable, inspect the machine, name the calling thread, and expand environment strings. POSIX and Windows stay behind one API. Failures are `StormByte::Error::Fault` in a per-type domain (`StormByte.System.*`). Nothing in this module throws. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts), not `std::string` by value.
+Spawn children with piped stdin/stdout/stderr, classify the medium behind a path, resolve directories and the current executable, inspect the machine, name the calling thread, and expand environment strings. POSIX and Windows stay behind one API. Failures are `StormByte::Error::Fault` in a per-type domain (`StormByte.System.*`). Nothing in this module throws. Text that crosses a DLL boundary is `StormByte::Safe::String` / `StormByte::Safe::CString` (and wide counterparts), not `std::string` by value.
 
 From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte Base).
 
@@ -29,7 +29,7 @@ If you landed here from a release link and have not read the tree:
 ### Added
 
 - **Device**: classify the medium behind a path (`Kind`, `Access` bitmask, nominal `Throughput`, suggested `Window`).
-    - Copyable; stores only the caller accessor as `StormByte::String::String`.
+    - Copyable; stores only the caller accessor as `StormByte::Safe::String`.
     - Probe is on-demand. `operator bool` is probe success, not permission.
     - Errors are `StormByte::System::Device::Error` in domain `StormByte.System.Device`, held as `StormByte::Error::Fault`.
 - **Directory**: current, home, temporary and current-executable directories. `bool` + out `String`; `LastError()` is TLS in this module.
@@ -45,16 +45,16 @@ If you landed here from a release link and have not read the tree:
     - `operator bool` is true only while a child is live (`RUNNING` or `SUSPENDED`).
     - Timed `Wait` sets `TimedOut` and leaves the child running. A second wait after a successful reap sets `AlreadyExited`.
     - A failed stdin write sets `BrokenPipe`.
-- **Breaking:** `Variable::Expand` returns `StormByte::String::String`. On Windows, a failed `ExpandEnvironmentStringsW` returns the original text (same as a missing UNIX home).
-- **Breaking:** Process constructor arguments are `std::vector<StormByte::String::String>`.
+- **Breaking:** `Variable::Expand` returns `StormByte::Safe::String`. On Windows, a failed `ExpandEnvironmentStringsW` returns the original text (same as a missing UNIX home).
+- **Breaking:** Process constructor arguments are `std::vector<StormByte::Safe::String>`.
 - Pipe construction and I/O no longer throw. Invalid pipes convert to `false`.
-- Public text across a DLL boundary uses `StormByte::String::String` / `CString`.
-- **Breaking:** System vendors [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) directly instead of StormByte-String. Migration of System's existing text API from StormByte-String is deferred to a follow-up change.
+- Public text across a DLL boundary uses `StormByte::Safe::String` / `StormByte::Safe::CString`.
+- **Breaking:** System vendors [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) directly instead of StormByte-String and exposes Base's `StormByte::Safe` owned-text types in its public API. Headers include `StormByte/safe/*.hxx` instead of `StormByte/string/*.hxx`, `StormByte/cstring.hxx` and `StormByte/wcstring.hxx`.
 - Visibility macros follow Base/Logger (`EXPORTS` / `STORMBYTE_SYSTEM_SHARED` / static empty).
 - Windows Device probe links `iphlpapi` and `ws2_32`. Host CPU name links `advapi32`. macOS Device probe links IOKit and CoreFoundation.
 - **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
 - **Breaking:** `Device::Window` is `ByteSize`. `Device::Throughput` stores octets per second as `ByteSize`, not `std::size_t`.
-- **Breaking:** `Process::operator>>` and `Stderr` take `StormByte::String::String`, not `std::string`. The captured text is owned by Base. `operator<<(std::ostream&, const Process&)` is `STORMBYTE_FORCE_INLINE`, so the stream buffer grows in the caller. `operator<<` on `Process` and `Pipe` accepts `std::string_view` and `String`. `operator>>` stays `String` only: a view cannot own the bytes that were read.
+- **Breaking:** `Process::operator>>` and `Stderr` take `StormByte::Safe::String`, not `std::string`. The captured text is owned by Base. `operator<<(std::ostream&, const Process&)` is `STORMBYTE_FORCE_INLINE`, so the stream buffer grows in the caller. `operator<<` on `Process` and `Pipe` accepts `std::string_view` and `String`. `operator>>` stays `String` only: a view cannot own the bytes that were read.
 - **Process path.** Both constructors copy `std::filesystem::path` inside the DLL. The rvalue overload no longer moves the caller buffer into `m_program`.
 
 ### Removed

@@ -44,7 +44,7 @@
 #include <iostream>
 #include <string>
 
-using StormByte::String::String;
+using StormByte::Safe::String;
 
 namespace {
 	void DumpText(const char* label, const String& value) {

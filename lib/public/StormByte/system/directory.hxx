@@ -41,7 +41,7 @@
 #pragma once
 
 #include <StormByte/error.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <string>
@@ -83,28 +83,28 @@ namespace StormByte::System {
 		 * @param[out] path Absolute directory. Written only on success.
 		 * @return true if the directory was resolved.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool Current(StormByte::String::String& path);
+		STORMBYTE_SYSTEM_PUBLIC bool Current(StormByte::Safe::String& path);
 
 		/**
 		 * @brief Current user home directory.
 		 * @param[out] path Absolute directory. Written only on success.
 		 * @return true if the directory was resolved.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool Home(StormByte::String::String& path);
+		STORMBYTE_SYSTEM_PUBLIC bool Home(StormByte::Safe::String& path);
 
 		/**
 		 * @brief Directory used for temporary files.
 		 * @param[out] path Absolute directory. Written only on success.
 		 * @return true if the directory was resolved.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool Temporary(StormByte::String::String& path);
+		STORMBYTE_SYSTEM_PUBLIC bool Temporary(StormByte::Safe::String& path);
 
 		/**
 		 * @brief Directory that contains the running executable.
 		 * @param[out] path Absolute directory. Written only on success.
 		 * @return true if the directory was resolved.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool CurrentExecutable(StormByte::String::String& path);
+		STORMBYTE_SYSTEM_PUBLIC bool CurrentExecutable(StormByte::Safe::String& path);
 	}
 }
 

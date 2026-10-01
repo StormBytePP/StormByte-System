@@ -38,7 +38,7 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/process.hxx>
 #include <StormByte/system/variable.hxx>
 #include <StormByte/test_handlers.h>
@@ -60,7 +60,7 @@
 #include <unistd.h>
 #endif
 
-using StormByte::String::String;
+using StormByte::Safe::String;
 using StormByte::System::Process;
 
 namespace {

@@ -41,7 +41,7 @@
 #include <StormByte/system/directory.hxx>
 
 #include <StormByte/error.txx>
-#include <StormByte/string/wstring.hxx>
+#include <StormByte/safe/wstring.hxx>
 #include <StormByte/system/variable.hxx>
 
 #include <filesystem>
@@ -66,11 +66,11 @@ namespace {
 		return code == Directory::Error::Success;
 	}
 
-	StormByte::String::String FromNative(const std::filesystem::path& path) {
+	StormByte::Safe::String FromNative(const std::filesystem::path& path) {
 #ifdef WINDOWS
-		return StormByte::String::String(StormByte::String::WString(path.wstring()));
+		return StormByte::Safe::String(StormByte::Safe::WString(path.wstring()));
 #else
-		return StormByte::String::String(path.string());
+		return StormByte::Safe::String(path.string());
 #endif
 	}
 
@@ -112,7 +112,7 @@ StormByte::Error::Fault Directory::LastError() noexcept {
 	return g_last;
 }
 
-bool Directory::Current(StormByte::String::String& path) {
+bool Directory::Current(StormByte::Safe::String& path) {
 	try {
 		path = FromNative(std::filesystem::current_path());
 		return Store(Directory::Error::Success);
@@ -121,11 +121,11 @@ bool Directory::Current(StormByte::String::String& path) {
 	}
 }
 
-bool Directory::Home(StormByte::String::String& path) {
+bool Directory::Home(StormByte::Safe::String& path) {
 #ifdef WINDOWS
-	const StormByte::String::String home = Variable::Expand("%USERPROFILE%");
+	const StormByte::Safe::String home = Variable::Expand("%USERPROFILE%");
 #else
-	const StormByte::String::String home = Variable::Expand("~");
+	const StormByte::Safe::String home = Variable::Expand("~");
 #endif
 	if (home.empty())
 		return Store(Directory::Error::NotFound);
@@ -133,7 +133,7 @@ bool Directory::Home(StormByte::String::String& path) {
 	return Store(Directory::Error::Success);
 }
 
-bool Directory::Temporary(StormByte::String::String& path) {
+bool Directory::Temporary(StormByte::Safe::String& path) {
 #ifdef WINDOWS
 	wchar_t tempPath[MAX_PATH];
 	const DWORD n = GetTempPathW(MAX_PATH, tempPath);
@@ -152,7 +152,7 @@ bool Directory::Temporary(StormByte::String::String& path) {
 #endif
 }
 
-bool Directory::CurrentExecutable(StormByte::String::String& path) {
+bool Directory::CurrentExecutable(StormByte::Safe::String& path) {
 	const std::filesystem::path file = ExecutableFile();
 	if (file.empty())
 		return Store(Directory::Error::Failed);

@@ -43,7 +43,7 @@
 #include <StormByte/bitmask.hxx>
 #include <StormByte/error.hxx>
 #include <StormByte/byte_size.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <cstdint>
@@ -60,7 +60,7 @@ namespace StormByte::System {
 	 * @class Device
 	 * @brief Query object for the medium behind a filesystem accessor.
 	 *
-	 * Stores only the caller path as @ref StormByte::String::String.
+	 * Stores only the caller path as @ref StormByte::Safe::String.
 	 * Fault, Kind, Access, Throughput and Window are computed on each call.
 	 *
 	 * Construction does not throw and does not open a handle.
@@ -171,7 +171,7 @@ namespace StormByte::System {
 			 * @brief Store an owned UTF-8 accessor.
 			 * @param path Caller path. Need not exist.
 			 */
-			explicit Device(const StormByte::String::String& path) noexcept;
+			explicit Device(const StormByte::Safe::String& path) noexcept;
 
 			/**
 			 * @brief Store a UTF-8 accessor view.
@@ -239,7 +239,7 @@ namespace StormByte::System {
 			 * @brief Accessor stored at construction.
 			 * @return Owned UTF-8 text. Not a canonical target path.
 			 */
-			const StormByte::String::String& Path() const noexcept;
+			const StormByte::Safe::String& Path() const noexcept;
 
 			/** @} */
 
@@ -279,7 +279,7 @@ namespace StormByte::System {
 			/** @} */
 
 		private:
-			StormByte::String::String m_path;	///< Accessor supplied by the caller
+			StormByte::Safe::String m_path;	///< Accessor supplied by the caller
 	};
 }
 

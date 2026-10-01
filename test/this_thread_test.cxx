@@ -45,7 +45,7 @@
 #include <iostream>
 #include <string>
 
-using StormByte::String::String;
+using StormByte::Safe::String;
 
 // -------------------
 // Name

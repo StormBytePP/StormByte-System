@@ -41,7 +41,7 @@
 #pragma once
 
 #include <StormByte/error.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <chrono>
@@ -103,7 +103,7 @@ namespace StormByte::System {
 		 * @param[out] name Owned UTF-8 text. Written only on success.
 		 * @return true if a name was read.
 		 */
-		STORMBYTE_SYSTEM_PUBLIC bool Name(StormByte::String::String& name);
+		STORMBYTE_SYSTEM_PUBLIC bool Name(StormByte::Safe::String& name);
 	}
 }
 

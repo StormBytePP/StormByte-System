@@ -41,7 +41,7 @@
 #include <StormByte/system/file.hxx>
 
 #include <StormByte/error.txx>
-#include <StormByte/string/wstring.hxx>
+#include <StormByte/safe/wstring.hxx>
 #include <StormByte/system/directory.hxx>
 
 #include <filesystem>
@@ -71,17 +71,17 @@ namespace {
 		return code == File::Error::Success;
 	}
 
-	StormByte::String::String FromNative(const std::filesystem::path& path) {
+	StormByte::Safe::String FromNative(const std::filesystem::path& path) {
 #ifdef WINDOWS
-		return StormByte::String::String(StormByte::String::WString(path.wstring()));
+		return StormByte::Safe::String(StormByte::Safe::WString(path.wstring()));
 #else
-		return StormByte::String::String(path.string());
+		return StormByte::Safe::String(path.string());
 #endif
 	}
 
-	std::filesystem::path NativePath(const StormByte::String::String& text) {
+	std::filesystem::path NativePath(const StormByte::Safe::String& text) {
 #ifdef WINDOWS
-		return std::filesystem::path(static_cast<std::wstring_view>(StormByte::String::WString(text)));
+		return std::filesystem::path(static_cast<std::wstring_view>(StormByte::Safe::WString(text)));
 #else
 		return std::filesystem::path(static_cast<std::string_view>(text));
 #endif
@@ -125,27 +125,27 @@ StormByte::Error::Fault File::LastError() noexcept {
 	return g_last;
 }
 
-bool File::Temporary(StormByte::String::String& path, std::string_view prefix, std::string_view suffix) {
-	StormByte::String::String directory;
+bool File::Temporary(StormByte::Safe::String& path, std::string_view prefix, std::string_view suffix) {
+	StormByte::Safe::String directory;
 	if (!Directory::Temporary(directory))
 		return Store(File::Error::Failed);
 
 #ifdef WINDOWS
-	std::wstring prefix_w(static_cast<std::wstring_view>(StormByte::String::WString(StormByte::String::String(prefix))));
+	std::wstring prefix_w(static_cast<std::wstring_view>(StormByte::Safe::WString(StormByte::Safe::String(prefix))));
 	if (prefix_w.size() > 3)
 		prefix_w.resize(3);
 	if (prefix_w.empty())
 		prefix_w = L"TMP";
 
 	wchar_t generated[MAX_PATH];
-	const StormByte::String::WString dir_w(directory);
+	const StormByte::Safe::WString dir_w(directory);
 	if (GetTempFileNameW(static_cast<const wchar_t*>(dir_w), prefix_w.c_str(), 0, generated) == 0)
 		return Store(File::Error::Failed);
 
 	std::filesystem::path result(generated);
 	if (!suffix.empty()) {
 		const std::filesystem::path dest = std::filesystem::path(std::wstring(generated) +
-			std::wstring(static_cast<std::wstring_view>(StormByte::String::WString(StormByte::String::String(suffix)))));
+			std::wstring(static_cast<std::wstring_view>(StormByte::Safe::WString(StormByte::Safe::String(suffix)))));
 		if (!MoveFileW(result.c_str(), dest.c_str())) {
 			DeleteFileW(result.c_str());
 			return Store(File::Error::Failed);
@@ -173,7 +173,7 @@ bool File::Temporary(StormByte::String::String& path, std::string_view prefix, s
 #endif
 }
 
-bool File::CurrentExecutable(StormByte::String::String& path) {
+bool File::CurrentExecutable(StormByte::Safe::String& path) {
 	const std::filesystem::path file = ExecutableFile();
 	if (file.empty())
 		return Store(File::Error::Failed);

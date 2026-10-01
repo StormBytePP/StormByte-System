@@ -58,10 +58,10 @@
 using namespace StormByte::System;
 
 namespace {
-	std::vector<std::string> NarrowArgs(const std::vector<StormByte::String::String>& args) {
+	std::vector<std::string> NarrowArgs(const std::vector<StormByte::Safe::String>& args) {
 		std::vector<std::string> out;
 		out.reserve(args.size());
-		for (const StormByte::String::String& arg : args)
+		for (const StormByte::Safe::String& arg : args)
 			out.emplace_back(std::string(std::string_view(arg)));
 		return out;
 	}
@@ -75,7 +75,7 @@ namespace {
 	}
 }
 
-Process::Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args) noexcept:
+Process::Process(const std::filesystem::path& prog, const std::vector<StormByte::Safe::String>& args) noexcept:
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
 #ifdef UNIX
@@ -97,7 +97,7 @@ Process::Process(const std::filesystem::path& prog, const std::vector<StormByte:
 	Run();
 }
 
-Process::Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args) noexcept:
+Process::Process(std::filesystem::path&& prog, std::vector<StormByte::Safe::String>&& args) noexcept:
 	m_implementation(std::make_unique<ProcessImplementation>()) {
 	m_implementation->m_status = Status::RUNNING;
 #ifdef UNIX
@@ -221,16 +221,16 @@ Process& Process::operator>>(Process& exe) {
 	return exe;
 }
 
-StormByte::String::String& Process::operator>>(StormByte::String::String& data) const {
-	StormByte::String::String raw;
+StormByte::Safe::String& Process::operator>>(StormByte::Safe::String& data) const {
+	StormByte::Safe::String raw;
 	if (m_implementation && m_implementation->m_pstdout)
 		*m_implementation->m_pstdout >> raw;
 	data = std::move(raw);
 	return data;
 }
 
-StormByte::String::String& Process::Stderr(StormByte::String::String& str) const {
-	StormByte::String::String raw;
+StormByte::Safe::String& Process::Stderr(StormByte::Safe::String& str) const {
+	StormByte::Safe::String raw;
 	if (m_implementation && m_implementation->m_pstderr)
 		*m_implementation->m_pstderr >> raw;
 	str = std::move(raw);
@@ -242,11 +242,11 @@ Process& Process::operator<<(std::string_view data) {
 	return *this;
 }
 
-Process& Process::operator<<(const StormByte::String::String& data) {
+Process& Process::operator<<(const StormByte::Safe::String& data) {
 	return *this << std::string_view(data);
 }
 
-Process& Process::operator<<(const StormByte::CString& data) {
+Process& Process::operator<<(const StormByte::Safe::CString& data) {
 	return *this << static_cast<std::string_view>(data);
 }
 

@@ -42,9 +42,9 @@
 
 #pragma once
 
-#include <StormByte/cstring.hxx>
+#include <StormByte/safe/cstring.hxx>
 #include <StormByte/error.hxx>
-#include <StormByte/string/string.hxx>
+#include <StormByte/safe/string.hxx>
 #include <StormByte/system/visibility.h>
 
 #include <chrono>
@@ -123,14 +123,14 @@ namespace StormByte::System {
 			 * @param prog Executable path or name.
 			 * @param args Argument list (not including argv[0]).
 			 */
-			Process(const std::filesystem::path& prog, const std::vector<StormByte::String::String>& args = {}) noexcept;
+			Process(const std::filesystem::path& prog, const std::vector<StormByte::Safe::String>& args = {}) noexcept;
 
 			/**
 			 * @brief Construct and start (moved).
 			 * @param prog Executable path or name (moved).
 			 * @param args Argument list (moved).
 			 */
-			Process(std::filesystem::path&& prog, std::vector<StormByte::String::String>&& args = {}) noexcept;
+			Process(std::filesystem::path&& prog, std::vector<StormByte::Safe::String>&& args = {}) noexcept;
 
 			Process(const Process& proc) = delete;
 
@@ -225,14 +225,14 @@ namespace StormByte::System {
 			 * @param str Destination. Replaced with the captured text.
 			 * @return Reference to @p str.
 			 */
-			StormByte::String::String& operator>>(StormByte::String::String& str) const;
+			StormByte::Safe::String& operator>>(StormByte::Safe::String& str) const;
 
 			/**
 			 * @brief Read remaining stderr into owned text.
 			 * @param str Destination. Replaced with the captured text.
 			 * @return Reference to @p str.
 			 */
-			StormByte::String::String& Stderr(StormByte::String::String& str) const;
+			StormByte::Safe::String& Stderr(StormByte::Safe::String& str) const;
 
 			/**
 			 * @brief Stream process stdout to an ostream.
@@ -241,7 +241,7 @@ namespace StormByte::System {
 			 * @return @p ostream.
 			 */
 			STORMBYTE_FORCE_INLINE friend std::ostream& operator<<(std::ostream& ostream, const Process& proc) {
-				StormByte::String::String owned;
+				StormByte::Safe::String owned;
 				proc >> owned;
 				return ostream << static_cast<std::string>(owned);
 			}
@@ -258,14 +258,14 @@ namespace StormByte::System {
 			 * @param str Data.
 			 * @return *this.
 			 */
-			Process& operator<<(const StormByte::String::String& str);
+			Process& operator<<(const StormByte::Safe::String& str);
 
 			/**
 			 * @brief Write a CString to process stdin.
 			 * @param str Data.
 			 * @return *this.
 			 */
-			Process& operator<<(const StormByte::CString& str);
+			Process& operator<<(const StormByte::Safe::CString& str);
 
 			/**
 			 * @brief Close process stdin (write end).
