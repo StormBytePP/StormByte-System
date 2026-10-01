@@ -9,20 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 StormByte System is the C++26 process, device and host layer of the StormByte suite.
 
-It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia, Network or String.
+It depends directly on [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Logger, Multimedia or Network.
 
 Spawn children with piped stdin/stdout/stderr, classify the medium behind a path, resolve directories and the current executable, inspect the machine, name the calling thread, and expand environment strings. POSIX and Windows stay behind one API. Failures are `StormByte::Error::Fault` in a per-type domain (`StormByte.System.*`). Nothing in this module throws. Text that crosses a DLL boundary is `StormByte::String::String` / `CString` (and wide counterparts), not `std::string` by value.
 
-From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
+From 2.0.0, original System sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte Base).
 
 If you landed here from a release link and have not read the tree:
 
-- What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-System/blob/master/README.md)
-- License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-System/blob/master/LICENSE)
+- What this module is, how to build it, and short examples: [README.md](https://github.com/StormByte-Suite/StormByte-System/blob/master/README.md)
+- License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormByte-Suite/StormByte-System/blob/master/LICENSE)
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-System/compare/2.0.0...HEAD
+[Unreleased]: https://github.com/StormByte-Suite/StormByte-System/compare/2.0.0...HEAD
 
 ## [2.0.0] - 2026-09-29
 
@@ -37,7 +37,7 @@ If you landed here from a release link and have not read the tree:
 - **Host**: name, architecture, CPU brand, OS, kernel, page size, physical/available memory, logical processors, process bitness.
 - **ThisThread**: `Sleep`; get/set thread name (`TooLong` if the platform limit is exceeded; the name is not truncated).
 - Dual license on original System sources: LGPL-3.0-or-later **or** commercial (`LICENSE` + `COPYING.LGPLv3`).
-- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). There is no `STORMBYTE_SYSTEM_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_SYSTEM_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
+- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). There is no `STORMBYTE_SYSTEM_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_SYSTEM_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte Base follows the same `BUILD_SHARED_LIBS` mode and is configured with `ENABLE_TEST=OFF`.
 
 ### Changed
 
@@ -49,7 +49,7 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** Process constructor arguments are `std::vector<StormByte::String::String>`.
 - Pipe construction and I/O no longer throw. Invalid pipes convert to `false`.
 - Public text across a DLL boundary uses `StormByte::String::String` / `CString`.
-- Depends on StormByte-String 1.0.0 (vendors Base 2.0.0).
+- **Breaking:** System vendors [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) directly instead of StormByte-String. Migration of System's existing text API from StormByte-String is deferred to a follow-up change.
 - Visibility macros follow Base/Logger (`EXPORTS` / `STORMBYTE_SYSTEM_SHARED` / static empty).
 - Windows Device probe links `iphlpapi` and `ws2_32`. Host CPU name links `advapi32`. macOS Device probe links IOKit and CoreFoundation.
 - **Breaking:** `Host::PageSize`, `PhysicalMemory` and `AvailableMemory` return `ByteSize`. They are octet lengths.
@@ -62,7 +62,7 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** `StormByte/system/exception.hxx` (`Exception`, `FileIOError`, `ExecutableNotFound`, `ProcessCreationError`).
 - **Breaking:** `StormByte::System::Error` and `StormByte/system/error.hxx` (domain `StormByte.System`). Device, Process, Directory, File, Host and ThisThread keep their own domains.
 
-[2.0.0]: https://github.com/StormBytePP/StormByte-System/compare/1.1.0...2.0.0
+[2.0.0]: https://github.com/StormByte-Suite/StormByte-System/compare/1.1.0...2.0.0
 
 ## [1.1.0] - 2026-09-13
 
@@ -96,7 +96,7 @@ If you landed here from a release link and have not read the tree:
     - Fixed Windows-only Process implementation initialization.
     - Made UNIX process tests resolve utilities through `PATH` for macOS portability.
 
-[1.1.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.1.0
+[1.1.0]: https://github.com/StormByte-Suite/StormByte-System/releases/tag/1.1.0
 
 ## [1.0.0] - 2026-09-05
 
@@ -133,4 +133,4 @@ Initial public release of StormByte-System.
 - On UNIX, if the executable cannot be started, the child exits with status **127**; the parent does not throw from the child path.
 - `Wait()` has no timeout; it blocks until the process ends.
 
-[1.0.0]: https://github.com/StormBytePP/StormByte-System/releases/tag/1.0.0
+[1.0.0]: https://github.com/StormByte-Suite/StormByte-System/releases/tag/1.0.0

@@ -4,10 +4,10 @@
 ![C++26](https://img.shields.io/badge/C%2B%2B-26-00599C?logo=c%2B%2B&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-3.28+-064F8C?logo=cmake&logoColor=white)
 ![License: LGPL v3 or commercial](https://img.shields.io/badge/License-LGPL--3.0--or--later%20OR%20Commercial-blue.svg)
-[![CI](https://github.com/StormBytePP/StormByte-System/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-System/actions/workflows/ci.yml)
+[![CI](https://github.com/StormByte-Suite/StormByte-System/actions/workflows/ci.yml/badge.svg)](https://github.com/StormByte-Suite/StormByte-System/actions/workflows/ci.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github-sponsors&logoColor=white)](https://github.com/sponsors/StormBytePP)
 
-StormByte-System is the C++26 process, device and host module of the [StormByte](https://dev.stormbyte.org/StormByte) suite.
+StormByte-System is the C++26 process, device and host module of the [StormByte](https://suite.stormbyte.org/StormByte) suite.
 
 Spawn children with piped stdin/stdout/stderr, classify the medium behind a path, resolve directories and the current executable, inspect the machine, name the calling thread, and expand environment strings. POSIX and Windows stay behind one API. Failures are `StormByte::Error::Fault` in a per-type domain (`StormByte.System.*`). Nothing in this module throws.
 
@@ -36,19 +36,19 @@ Spawn children with piped stdin/stdout/stderr, classify the medium behind a path
 
 ## Repository
 
-- [StormByte-System](https://github.com/StormBytePP/StormByte-System)
+- [StormByte-System](https://github.com/StormByte-Suite/StormByte-System)
 
 ## Installation
 
 ```bash
-git clone https://github.com/StormBytePP/StormByte-System.git
+git clone --recursive https://github.com/StormByte-Suite/StormByte-System.git
 cd StormByte-System
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
 cmake --install build
 ```
 
-Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). A plain configure builds the shared library. `-DBUILD_SHARED_LIBS=OFF` builds a static archive; on Windows the headers then do not use `dllimport`. Vendored StormByte-String (and Base through String) follows the same mode.
+Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). A plain configure builds the shared library. `-DBUILD_SHARED_LIBS=OFF` builds a static archive; on Windows the headers then do not use `dllimport`. Vendored StormByte Base follows the same mode.
 
 A shared build keeps this library as its own `.so` / `.dll`. Under the LGPL that is usually the simpler way to ship: the user can replace that file. A static archive is folded into your binary. The LGPL still applies to this code; you must give the recipient a way to relink your product with a different build of this library. If that does not fit how you distribute the final product, a commercial license is available from the copyright holder (see [License](#license)).
 
@@ -81,22 +81,21 @@ A shared build keeps this library as its own `.so` / `.dll`. Under the LGPL that
 
 | Dependency | Role |
 |------------|------|
-| [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) | UTF-8 / UTF-16 text across the DLL boundary (vendors [Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0)) |
+| [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) | Error/Fault, visibility, `ByteSize`, safe text across the DLL boundary |
 
 ## The rest of the suite
 
 | Module | Role | API |
 | --- | --- | --- |
-| [Base](https://github.com/StormBytePP/StormByte) | Error/Fault, visibility, Size, Bitmask, serialization, UUID, concepts | [/StormByte](https://dev.stormbyte.org/StormByte) |
-| [Buffer](https://github.com/StormBytePP/StormByte-Buffer) | FIFO, SharedFIFO, Ring, Producer/Consumer and multi-stage pipelines | [/StormByte-Buffer](https://dev.stormbyte.org/StormByte-Buffer) |
-| [Config](https://github.com/StormBytePP/StormByte-Config) | Human-readable text and versioned binary documents | [/StormByte-Config](https://dev.stormbyte.org/StormByte-Config) |
-| [Crypto](https://github.com/StormBytePP/StormByte-Crypto) | Hash, compress, encrypt, sign and key agreement | [/StormByte-Crypto](https://dev.stormbyte.org/StormByte-Crypto) |
-| [Database](https://github.com/StormBytePP/StormByte-Database) | One API over SQLite, PostgreSQL and MariaDB | [/StormByte-Database](https://dev.stormbyte.org/StormByte-Database) |
-| [Logger](https://github.com/StormBytePP/StormByte-Logger) | Stream logger with levels, headers and redaction | [/StormByte-Logger](https://dev.stormbyte.org/StormByte-Logger) |
-| [Multimedia](https://github.com/StormBytePP/StormByte-Multimedia) | Decode, encode and containers without raw FFmpeg types | [/StormByte-Multimedia](https://dev.stormbyte.org/StormByte-Multimedia) |
-| [Network](https://github.com/StormBytePP/StormByte-Network) | Framed packets, Client/Server, IPv4/IPv6 TCP | [/StormByte-Network](https://dev.stormbyte.org/StormByte-Network) |
-| [String](https://github.com/StormBytePP/StormByte-String) | Owned UTF-8 / UTF-16 text safe across a DLL boundary | [/StormByte-String](https://dev.stormbyte.org/StormByte-String) |
-| **System** | This repository | [/StormByte-System](https://dev.stormbyte.org/StormByte-System) |
+| [Base](https://github.com/StormByte-Suite/StormByte) | Exceptions, Expected, serialization, UUID, concepts, safe text and pointers | [/StormByte](https://suite.stormbyte.org/StormByte) |
+| [Buffer](https://github.com/StormByte-Suite/StormByte-Buffer) | FIFO, SharedFIFO, Ring, Producer/Consumer and multi-stage pipelines | [/StormByte-Buffer](https://suite.stormbyte.org/StormByte-Buffer) |
+| [Config](https://github.com/StormByte-Suite/StormByte-Config) | Human-readable text and versioned binary documents | [/StormByte-Config](https://suite.stormbyte.org/StormByte-Config) |
+| [Crypto](https://github.com/StormByte-Suite/StormByte-Crypto) | Hash, compress, encrypt, sign and key agreement | [/StormByte-Crypto](https://suite.stormbyte.org/StormByte-Crypto) |
+| [Database](https://github.com/StormByte-Suite/StormByte-Database) | One API over SQLite, PostgreSQL and MariaDB | [/StormByte-Database](https://suite.stormbyte.org/StormByte-Database) |
+| [Logger](https://github.com/StormByte-Suite/StormByte-Logger) | Stream logger with levels, headers and redaction | [/StormByte-Logger](https://suite.stormbyte.org/StormByte-Logger) |
+| [Multimedia](https://github.com/StormByte-Suite/StormByte-Multimedia) | Decode, encode and containers without raw FFmpeg types | [/StormByte-Multimedia](https://suite.stormbyte.org/StormByte-Multimedia) |
+| [Network](https://github.com/StormByte-Suite/StormByte-Network) | Framed packets, Client/Server, IPv4/IPv6 TCP | [/StormByte-Network](https://suite.stormbyte.org/StormByte-Network) |
+| **System** | This repository | [/StormByte-System](https://suite.stormbyte.org/StormByte-System) |
 
 ## Public API
 

@@ -10,7 +10,7 @@ string(STRIP "${_sb_ver}" _sb_ver)
 project("StormByte C++ Library: System module"
 	VERSION ${_sb_ver}
 	DESCRIPTION "StormByte-System is the C++26 process and environment module of the StormByte suite."
-	HOMEPAGE_URL "https://dev.stormbyte.org/StormByte-System"
+	HOMEPAGE_URL "https://suite.stormbyte.org/StormByte-System"
 )
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)

@@ -3,25 +3,21 @@ option(ENABLE_DOC "Enable documentation generation with Doxygen" OFF)
 if(ENABLE_DOC)
 	find_package(Doxygen REQUIRED)
 
-	file(DOWNLOAD
-		"https://dev.stormbyte.org/StormByte/StormByte.tag"
-		"${CMAKE_CURRENT_BINARY_DIR}/StormByte.tag"
-		STATUS _sb_tag_status
-	)
-	list(GET _sb_tag_status 0 _sb_tag_err)
-	if(NOT _sb_tag_err EQUAL 0)
-		message(FATAL_ERROR "Could not fetch StormByte.tag: ${_sb_tag_status}")
-	endif()
+	function(download_doxygen_tag name url)
+		set(tag_file "${CMAKE_CURRENT_BINARY_DIR}/${name}.tag")
+		file(DOWNLOAD
+			"${url}"
+			"${tag_file}"
+			STATUS download_status
+		)
+		list(GET download_status 0 download_error)
+		if(NOT download_error EQUAL 0)
+			message(FATAL_ERROR "Could not fetch ${name}.tag: ${download_status}")
+		endif()
+		set(${name}_TAG_FILE "${tag_file}" PARENT_SCOPE)
+	endfunction()
 
-	file(DOWNLOAD
-		"https://dev.stormbyte.org/StormByte-String/StormByte-String.tag"
-		"${CMAKE_CURRENT_BINARY_DIR}/StormByte-String.tag"
-		STATUS _sbs_tag_status
-	)
-	list(GET _sbs_tag_status 0 _sbs_tag_err)
-	if(NOT _sbs_tag_err EQUAL 0)
-		message(FATAL_ERROR "Could not fetch StormByte-String.tag: ${_sbs_tag_status}")
-	endif()
+	download_doxygen_tag(StormByte "http://suite.stormbyte.org/StormByte/StormByte.tag")
 
 	set(DOXYGEN_PROJECT_NAME "StormByte-System")
 	set(DOXYGEN_PROJECT_NUMBER "${PROJECT_VERSION}")
@@ -38,8 +34,7 @@ if(ENABLE_DOC)
 
 	set(DOXYGEN_INCLUDE_PATH
 		"${CMAKE_SOURCE_DIR}/lib/public"
-		"${CMAKE_SOURCE_DIR}/thirdparty/StormByte/string/src/lib/public"
-		"${CMAKE_SOURCE_DIR}/thirdparty/StormByte/string/src/thirdparty/StormByte/base/src/lib/public"
+		"${CMAKE_SOURCE_DIR}/thirdparty/StormByte/base/src/lib/public"
 	)
 	set(DOXYGEN_STRIP_FROM_PATH "${CMAKE_SOURCE_DIR}")
 	set(DOXYGEN_STRIP_FROM_INC_PATH "${CMAKE_SOURCE_DIR}/lib/public")
@@ -51,7 +46,6 @@ if(ENABLE_DOC)
 	set(DOXYGEN_PREDEFINED
 		"STORMBYTE_SYSTEM_PUBLIC:="
 		"STORMBYTE_SYSTEM_PRIVATE:="
-		"STORMBYTE_STRING_PUBLIC:="
 		"STORMBYTE_PUBLIC:="
 		"WINDOWS="
 		"LINUX="
@@ -87,8 +81,7 @@ if(ENABLE_DOC)
 
 	set(DOXYGEN_GENERATE_TAGFILE "${CMAKE_SOURCE_DIR}/docs/StormByte-System.tag")
 	set(DOXYGEN_TAGFILES
-		"${CMAKE_CURRENT_BINARY_DIR}/StormByte.tag=https://dev.stormbyte.org/StormByte"
-		"${CMAKE_CURRENT_BINARY_DIR}/StormByte-String.tag=https://dev.stormbyte.org/StormByte-String"
+		"${StormByte_TAG_FILE}=http://suite.stormbyte.org/StormByte"
 	)
 
 	set(DOXYGEN_GENERATE_MAN NO)
